@@ -1,0 +1,14 @@
+{
+  "name": "FaceTwin",
+  "short_name": "FaceTwin",
+  "description": "Try any look on your own face, then follow a 5-minute plan made for you.",
+  "start_url": "./#/today",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0E0E14",
+  "theme_color": "#0E0E14",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
