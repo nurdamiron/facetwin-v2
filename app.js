@@ -24,7 +24,7 @@ const DEFAULT = {
   goal: null, looks: [], concerns: [], minutes: 5, email: "", consent: true,
   photos: {}, lms: {}, analysis: null, scans: [],
   applied: [], tried: [], saved: [],
-  startedAt: null, freeStart: null, paid: null, chosen: "twelve", waitlist: null,
+  startedAt: null, freeStart: null, paid: null, billing: null, chosen: "twelve", waitlist: null,
   checks: {}, reminders: null, utm: {}, flags: {}, dayOffset: 0,
   shelf: { tier: "budget", own: {}, pick: {} },
   intensity: {}, customHair: "#7C4DFF",
@@ -1046,7 +1046,8 @@ ACT.choose = (v) => {
   S.chosen = v; save(); $$(".plan").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   const line = $("#renewLine"); if (line) line.textContent = renewText(planById(v));
 };
-ACT.checkout = () => {
+const STRIPE_PLANS = ["glow_m", "glow_y", "pro_m", "pro_y"]; // the plans that exist as Stripe prices
+ACT.checkout = async (_v, el) => {
   if (S.flags.glow && !$("#renewOk")?.checked) return toast("Please tick the box to confirm the renewal terms");
   const p = planById(S.chosen);
   track("InitiateCheckout", { value: p.price, currency: CONFIG.CURRENCY, content_name: p.id });
@@ -1056,8 +1057,64 @@ ACT.checkout = () => {
     S.paid = p.id; if (!S.flags.glow) S.startedAt = S.startedAt || now().toISOString(); save();
     toast("Tester mode: plan unlocked, no payment"); go(S.flags.glow ? "preview" : "welcome"); return;
   }
+  // 1) Stripe Checkout through our /api (the secret key stays on the server)
+  if (STRIPE_PLANS.includes(p.id)) {
+    const label = el && el.textContent;
+    if (el) { el.disabled = true; el.textContent = "Opening secure checkout…"; }
+    try {
+      const r = await fetch("api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: p.id, email: S.email || "", utm: S.utm }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.url) { location.href = j.url; return; }
+      if (r.status !== 503 && r.status !== 404) throw new Error(j.error || "Checkout didn't open. Try again.");
+    } catch (e) {
+      if (el) { el.disabled = false; el.textContent = label; }
+      return toast(String(e.message || e).slice(0, 160));
+    }
+    if (el) { el.disabled = false; el.textContent = label; }
+  }
+  // 2) payment link, 3) honest "payments open soon" screen
   if (link) location.href = link.replace("{email}", encodeURIComponent(S.email || ""));
   else go("waitlist");
+};
+// Back from Stripe: /?cs=<session id>. Ask our server whether Stripe really took the money, then unlock.
+async function confirmCheckout(cs) {
+  history.replaceState(null, "", location.pathname + (DEBUG ? "?debug=1" : "") + "#/welcome");
+  let glowPlan = false;
+  try {
+    const r = await fetch(`api/verify?cs=${encodeURIComponent(cs)}`, { cache: "no-store" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.paid) throw new Error(j.error || "We couldn't confirm the payment yet.");
+    const p = planById(j.plan), first = S.paid !== j.plan;
+    glowPlan = CONFIG.PLANS_GLOW.some((q) => q.id === j.plan);
+    if (glowPlan) S.flags.glow = 1;
+    S.paid = j.plan; S.billing = { customer: j.customer, token: j.token, cs };
+    if (j.email && !S.email) S.email = j.email;
+    if (!glowPlan) S.startedAt = S.startedAt || now().toISOString();
+    save();
+    if (first) {
+      const value = typeof j.value === "number" ? j.value : p.price;
+      // eventID = checkout session, so a later server-side (CAPI) Purchase is deduplicated with this one
+      if (window.fbq) window.fbq("track", "Purchase", { value, currency: j.currency || CONFIG.CURRENCY, content_name: p.id }, { eventID: cs });
+      console.info("[track]", "Purchase", { value, plan: p.id, cs });
+      track("Subscribe", { value, currency: j.currency || CONFIG.CURRENCY });
+    }
+    toast(`${p.name} is active. Thank you!`);
+  } catch (e) {
+    toast(String(e.message || e).slice(0, 160) + " Write to " + CONFIG.SUPPORT_EMAIL);
+    go("paywall"); return;
+  }
+  go(glowPlan ? "preview" : "welcome");
+}
+// Stripe Customer Portal: change plan, update card, cancel (the signed token proves this browser is the buyer).
+ACT.manageSub = async (_v, el) => {
+  if (!S.billing?.customer) return toast("Open the link in your receipt email to manage the plan.");
+  if (el) el.disabled = true;
+  try {
+    const r = await fetch("api/portal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(S.billing) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) throw new Error(j.error || "Couldn't open billing. Try again.");
+    track("ManageSubscription"); location.href = j.url;
+  } catch (e) { if (el) el.disabled = false; toast(String(e.message || e).slice(0, 160)); }
 };
 ACT.notNow = () => { track("PaywallDismissed"); go(S.flags.glow ? "preview" : S.freeStart ? "today" : "freeoffer"); };
 
@@ -1741,9 +1798,10 @@ R.account = {
       <div class="card" style="background:var(--p);color:#fff">
         <div class="top"><span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">${p ? "Active" : S.waitlist ? "Early access" : "Free week"}</span><span class="pill" style="background:#fff;color:var(--ink)">Week ${week()}</span></div>
         <span class="h1" style="font-size:28px">${p ? `${p.name} · $${p.price}` : S.waitlist ? `Spot saved: ${planById(S.waitlist).name}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
-        <span style="font-size:13px;font-weight:700;opacity:.85">${p ? "Manage or cancel from your payment receipt email." : S.email ? `We'll email ${esc(S.email)}` : "No card on file"}</span></div>
+        <span style="font-size:13px;font-weight:700;opacity:.85">${p ? (S.billing?.customer ? "Change plan, update card or cancel below." : "Manage or cancel from your payment receipt email.") : S.email ? `We'll email ${esc(S.email)}` : "No card on file"}</span></div>
       <div class="col">
         ${!p ? `<button class="row" data-go="paywall"><span><b>Get the full plan</b><small>Every look + full routine</small></span><span class="r">›</span></button>` : ""}
+        ${p && S.billing?.customer ? `<button class="row" data-act="manageSub"><span><b>Manage subscription</b><small>Change plan, update card, cancel in 2 taps</small></span><span class="r">›</span></button>` : ""}
         <button class="row" data-go="reminders"><span><b>Reminders</b><small>${S.reminders ? `Every day at ${S.reminders.time}` : "Off"}</small></span><span class="r">›</span></button>
         <button class="row" data-go="skin"><span><b>Edit skin answers</b><small>${S.concerns.length} concerns · ${S.minutes} min a day</small></span><span class="r">›</span></button>
         <button class="row" data-go="privacy"><span><b>Privacy &amp; my data</b><small>Photos, twin, delete</small></span><span class="r">›</span></button>
@@ -1839,8 +1897,11 @@ function boot() {
   // tester mode for your own testing: open the site with ?tester=1 (turn off with ?tester=0)
   if (QS.get("tester") === "1") { S.flags.tester = 1; S.startedAt = S.startedAt || (S.photos.front && !S.flags.glow ? now().toISOString() : null); save(); setTimeout(() => toast("Tester mode on: everything unlocked"), 600); }
   if (QS.get("tester") === "0") { S.flags.tester = 0; save(); }
-  // return from checkout: set your payment provider's success URL to  https://YOUR-SITE/?paid=twelve#/welcome
-  const paid = QS.get("paid");
+  // return from Stripe Checkout: /?cs=<session id>. The server confirms the payment before anything unlocks.
+  const cs = QS.get("cs");
+  if (cs) confirmCheckout(cs);
+  // Old unlock by URL (?paid=glow_y): anyone could type it, so it only works when CONFIG.ALLOW_PAID_PARAM or ?debug=1.
+  const paid = (CONFIG.ALLOW_PAID_PARAM || DEBUG) ? QS.get("paid") : null;
   if (paid && [...CONFIG.PLANS_GLOW, ...CONFIG.PLANS].some((p) => p.id === paid)) {
     const p = planById(paid), isGlowPlan = CONFIG.PLANS_GLOW.some((q) => q.id === paid);
     if (isGlowPlan) S.flags.glow = 1;

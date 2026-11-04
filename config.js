@@ -10,6 +10,9 @@ export const CONFIG = {
   // Checkout links from your payment provider (Paddle, Lemon Squeezy, Gumroad, Stripe...).
   // Leave "" and the paywall shows an honest "payments open soon / early access" screen instead.
   PAYMENT_LINKS: { trial: "", four: "", twelve: "", glow_m: "", glow_y: "", pro_m: "", pro_y: "" },
+  // Main path is Stripe Checkout through /api/checkout (keys in Vercel env vars, see README "Payments").
+  // PAYMENT_LINKS above are only the fallback. Old unlock by URL (?paid=glow_y) stays OFF: anyone can type it.
+  ALLOW_PAID_PARAM: false,
 
   // V2 plans (Glow editor + Pro). price = what she pays today, then = the recurring price.
   // Monthly plans start with a 20% first-month discount (Offer tab of the unit-economics sheet).

@@ -25,7 +25,7 @@ Local test without a key: `MOCK=1 python3 server.py` (the edit returns your phot
 
 ### Known limits (not done yet)
 
-- `?tester=1` and `?paid=` unlock on the client only; real access control needs a backend and webhooks.
+- `?tester=1` unlocks everything on the client for anyone who knows it (it is the team's test switch). `?paid=` is off unless `ALLOW_PAID_PARAM`. Real access control needs a backend and webhooks.
 - The rate limit in `api/edit.js` is per server instance. For a hard cap use Upstash or Vercel KV and a Google spend limit.
 - `models/depth_anything_v2_vits.onnx` is ~99 MB: check your host's file limits (only the Pro 3D twin needs it).
 - `privacy.html` and `terms.html` still have `[brackets]` (legal name, address, refund policy) and need a lawyer's review before paid ads.
@@ -102,14 +102,55 @@ Alternatives: Vercel or Cloudflare Pages (also free). The folder is plain HTML, 
 |---|---|
 | `META_PIXEL_ID` | Meta Events Manager → Connect data → Web → Pixel. Copy the number. |
 | `LEAD_ENDPOINT` | Free option: create a form at formspree.io and paste its URL. Each signup sends email, quiz answers, face shape, chosen plan and UTM tags. **No photos.** |
-| `PAYMENT_LINKS` | Checkout links from your payment provider. While empty, the paywall shows an honest "Payments open in a few days, 50% off early access" screen and starts the free week, so you still measure who tries to pay. |
+| `PAYMENT_LINKS` | Fallback only. The main path is Stripe Checkout via `/api/checkout` (section 3a). If neither is set up, the paywall shows the "Payments open in a few days" screen. |
 | `SHARE_URL` | The link printed on share cards. |
 
-**When you add payments:** set the provider's *success / redirect URL* to `https://YOUR-SITE/?paid=twelve#/welcome`, using `trial`, `four` or `twelve` to match the plan. The app then unlocks the full plan and fires `Purchase`.
+## 3a. Payments: Stripe Checkout (test mode for the capstone)
 
-- If the link contains `{email}`, the app fills in her email.
-- Stripe doesn't open accounts for Kazakhstan. Check that your provider pays out to you (Paddle, Lemon Squeezy and Gumroad act as the seller for you).
-- The `?paid=` unlock lives only in the browser. That's fine for a test, but real access checks need a small backend later.
+The paywall opens **Stripe Checkout** through `/api/checkout`. After payment Stripe sends her back to `/?cs=<session>#/welcome`, the app asks `/api/verify` whether Stripe really took the money, and only then unlocks the plan. A typed URL can't unlock anything (`?paid=` is off unless `ALLOW_PAID_PARAM: true` or `?debug=1`).
+
+| Tier | Plans | Unlocks |
+|---|---|---|
+| Free | — | Studio preview, free download is 720 px with a "facetwin.app" mark, 3 drawn looks, 1 AI look |
+| Glow | `glow_m` $7.99 first month → $9.99, `glow_y` $49.99 | Unlimited retouch, HD download |
+| Pro | `pro_m` $15.99 first month → $19.99, `pro_y` $99.99 | Glow + all looks, 30 AI looks/retakes a month, face plan, coach |
+
+**Set it up (about 5 minutes with the script, or 15 by hand, Stripe test mode, no company needed):**
+
+**Fast way:** steps 2–4 are done by one script. Run it on your computer with your **test** key (it never prints or stores the key):
+
+```bash
+STRIPE_SECRET_KEY=sk_test_... node scripts/stripe-setup.js https://your-site.vercel.app
+```
+
+It creates the 2 products, 4 prices, the 20% first-month coupon and the customer-portal configuration (safe to run again), then prints the env vars for step 5, including `STRIPE_PORTAL_CONFIG`. Only the renewal-reminder emails in step 4 still need one click in the Dashboard.
+
+**By hand:**
+1. dashboard.stripe.com → switch on **Test mode**.
+2. Product catalog → create 2 products, **FaceTwin Glow** and **FaceTwin Pro**, with 4 recurring prices: $9.99/month, $49.99/year, $19.99/month, $99.99/year. Copy the 4 `price_...` ids.
+3. Product catalog → Coupons → **20% off, duration: Once**. Copy its id. It is applied to monthly plans only, so the first month is $7.99 / $15.99.
+4. Settings → Billing → **Customer portal**: turn it on (cancel, update card, switch plan). Settings → Billing → **Subscriptions and emails**: turn on emails about upcoming renewals (the "3 days before" reminder promised on the paywall).
+5. Vercel → Settings → Environment Variables:
+
+| Variable | Value |
+|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_...` (Developers → API keys). Never put it in `config.js` or the repo |
+| `STRIPE_PRICE_GLOW_M`, `STRIPE_PRICE_GLOW_Y`, `STRIPE_PRICE_PRO_M`, `STRIPE_PRICE_PRO_Y` | the 4 `price_...` ids |
+| `STRIPE_COUPON_FIRST_MONTH` | the coupon id (optional) |
+| `PUBLIC_URL` | optional, e.g. `https://facetwin.vercel.app` (otherwise taken from the request) |
+| `AI_EDITS_PER_HOUR` | optional, per-IP limit on `/api/edit`, default 20 |
+
+6. Redeploy. `/api/status` should say `"payments": true`. Pay with test card **4242 4242 4242 4242**, any future date, any CVC.
+
+**Test without a Stripe account:** set `STRIPE_MOCK=1` (e.g. `vercel dev`). `/api/checkout` then returns a fake session and `/api/verify` confirms it, so the whole return flow can be tried with no Stripe account. Never set it in production.
+
+If `/api/checkout` isn't configured, the paywall falls back to `PAYMENT_LINKS`, then to the "payments open soon" screen.
+
+**Before live payments:** a US LLC for Stripe (see Money Map), Vercel Pro, real Privacy/Terms, and live keys (`sk_live_...`).
+
+**Honest paywall:** today's price and the renewal price sit above the button, the consent box starts empty, the button stays off until she ticks it, and cancelling is one tap in Settings → Manage subscription (Stripe portal).
+
+**AI edits leave the phone:** AI looks and retakes send the photo to Google's Gemini API. The app asks once before the first one, and `privacy.html` says so. `/api/edit` only answers our own origin and limits each IP to `AI_EDITS_PER_HOUR`.
 
 ## 4. Events sent to Meta (your funnel)
 
@@ -134,7 +175,10 @@ Alternatives: Vercel or Cloudflare Pages (also free). The folder is plain HTML, 
 | `Twin3DViewed` (custom) | 3D face shown | Aha |
 | `ShelfView`, `ShelfTier`, `ShelfOwn`, `ShelfListCopied`, `ShelfListSaved` (custom) | My shelf use | Job 2 engagement |
 | `ShelfBuyClick` (custom, value = product price) | "Find it" tapped | Affiliate revenue potential |
-| `Purchase`, `Subscribe` | Back from checkout with `?paid=` | Real revenue |
+| `DownloadHDTapped` (custom) | Free user taps Download HD in Studio | Preview → paywall step |
+| `RenewalConsent` (custom) | Ticks the renewal box | Paywall friction |
+| `AiConsent` (custom) | Agrees to the cloud AI edit | |
+| `Purchase`, `Subscribe` | Back from Stripe, confirmed by `/api/verify` (`eventID` = checkout session, for CAPI dedup) | Real revenue |
 
 `Screen` (custom, with `screen` name) fires on every screen, so you can build any funnel in Events Manager → Custom conversions.
 
