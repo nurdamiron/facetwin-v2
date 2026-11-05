@@ -16,7 +16,16 @@ export const BASE_RETOUCH = (change) =>
   `Keep real skin texture: visible pores and fine skin detail. No plastic or airbrushed skin, no beauty-filter look. ` +
   `Do not slim the face or change facial proportions. Photorealistic and natural, like a real photo taken a moment later.`;
 
-export const GROUPS = ["Glow", "Hair color", "Hairstyle", "Braids", "Brows", "Beard & mustache", "Your idea"];
+// Studio: background and portrait framing. The person must stay untouched, so it has its own base text.
+export const BASE_STUDIO = (change) =>
+  `Edit this photo of a real person. Change ONLY the background and framing as follows: ${change}. ` +
+  `Keep the person exactly the same: identity, face, skin and its texture, hairstyle, hair color, expression, pose, clothing and the lighting on the person. ` +
+  `Keep clean, natural edges around the hair and shoulders: no halo, no cut-out look, individual hair strands stay visible. ` +
+  `Photorealistic, like a real photo taken in that place.`;
+
+export const GROUPS = ["Glow", "Studio", "Hair color", "Hairstyle", "Braids", "Brows", "Beard & mustache", "Your idea"];
+// Groups included in a Glow plan. Everything else (hair, braids, brows, beard, your idea) belongs to the Looks add-on.
+export const GLOW_GROUPS = ["Glow", "Studio"];
 
 export const PREVIEWS = [
   // glow: natural retouch (the V2 editor). retouch:true switches the prompt base.
@@ -36,6 +45,15 @@ export const PREVIEWS = [
     change: "remove the freckles and even out the skin tone while keeping natural skin texture and pores; keep moles" },
   { id: "glow", group: "Glow", retouch: true, name: "Glow", icon: "glow",
     change: "give the skin a soft studio-light glow: a slightly warmer, healthier tone and a subtle natural highlight on the cheekbones, nose bridge and forehead; keep real skin texture and the same light direction" },
+  // studio: backgrounds and passport / CV portrait (part of Glow)
+  { id: "bgwhite", group: "Studio", studio: true, name: "White background", icon: "image",
+    change: "replace the background with a clean, evenly lit pure white studio background, with a soft natural shadow only where the person would cast one" },
+  { id: "bggrey", group: "Studio", studio: true, name: "Grey studio", icon: "layers",
+    change: "replace the background with a smooth, soft grey studio backdrop with a very subtle gradient, like a professional headshot" },
+  { id: "bgblur", group: "Studio", studio: true, name: "Blur background", icon: "camera",
+    change: "keep the same background but blur it softly like a portrait lens with a shallow depth of field, so the person stands out" },
+  { id: "passport", group: "Studio", studio: true, name: "Passport / CV photo", icon: "user",
+    change: "make this a passport and CV style portrait: a plain light-grey or white background, the head and shoulders centered and level, even soft lighting on the face with no harsh shadows; do not change the expression or clothing" },
   // hair color
   { id: "copper", group: "Hair color", name: "Copper", icon: "droplet", pick: true,
     change: "the hair color to a natural copper red with realistic shine, subtle darker roots and natural strand-level variation; keep the exact same haircut, length and hairstyle" },
@@ -101,6 +119,6 @@ export const previewById = (id) => PREVIEWS.find((p) => p.id === id);
 // text: her own words, only for the "Your idea" option.
 export const promptFor = (id, text = "") => {
   const p = previewById(id);
-  return (p && p.retouch ? BASE_RETOUCH : BASE)(id === "custom" ? cleanIdea(text) : p.change);
+  return (p && p.studio ? BASE_STUDIO : p && p.retouch ? BASE_RETOUCH : BASE)(id === "custom" ? cleanIdea(text) : p.change);
 };
 export const cleanIdea = (t) => String(t || "").replace(/[\r\n]+/g, " ").replace(/[<>{}]/g, "").trim().slice(0, 200);
