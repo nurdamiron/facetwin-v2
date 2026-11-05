@@ -1,6 +1,6 @@
 # FaceTwin landing and funnel: what we decided and what is left
 
-Status as of 5 Nov 2026. The ordered plan is in section 7. This file is the memory of the landing work so nobody has to rediscover it.
+Status as of 5 Nov 2026. The ordered plan is in section 6. This file is the memory of the landing work so nobody has to rediscover it.
 It describes the **same product** as `docs/PRODUCT.md`, it does not change it.
 
 ## 0. The product, in one place (do not drift from this)
@@ -79,7 +79,7 @@ Built through the Framer Server API (`framer-api`, key per project, WebSocket to
 
 ## 4. Open items (owner in brackets)
 
-- [ ] Run the three Framer agent prompts (section 5) in order. (owner)
+- [ ] Run the four Framer agent prompts (section 5) in order. (owner)
 - [ ] Production app domain, then replace the buttons' link on the landing. (owner gives, Claude replaces)
 - [ ] 2-3 real before/after photos with consent, for the hero slider and the results slider. (owner)
 - [ ] Add the four Faceshift ideas (section 2). (Claude, after photos)
@@ -167,7 +167,7 @@ Check the whole site before I publish. Report as a table (problem, where, severi
 Then let me pick what to fix. Do not publish.
 ```
 
-## 7. Plan: what to do next, in order
+## 6. Plan: what to do next, in order
 
 Priorities: **P0** = before the demo and before anyone outside sees the landing. **P1** = before paid ads. **P2** = after launch.
 "Done when" is the check that tells you the step is really finished. Nothing here changes the product (section 0).
@@ -204,7 +204,7 @@ Priorities: **P0** = before the demo and before anyone outside sees the landing.
 - Roadmap from the deck: Coach with the live camera (M4), video retouch (M7), UK / CA / AU (M10).
 - Re-measure edit time on real Gemini and update "about 10 seconds" if it differs.
 
-## 8. Demo-day order and fallback
+## 7. Demo-day order and fallback
 
 1. Open the landing on a phone (not a desktop window): hero, scroll once, tap **Upload a selfie**.
 2. Upload a real selfie (not the demo face), tap **Show me**, accept the consent, show before/after.
@@ -213,7 +213,7 @@ Priorities: **P0** = before the demo and before anyone outside sees the landing.
 5. Show Settings -> Manage subscription (cancel in two taps).
 6. Fallback: a recorded Loom of steps 1-5 (put the link on the demo slide next to the live link). Do the live path once in an incognito window the day before.
 
-## 9. Risks, ranked
+## 8. Risks, ranked
 
 1. **Gemini quality is unverified.** Everything else is built on it. Step 2 decides whether the product works.
 2. **Landing is public with template leftovers.** Do not share the link before step 5.
@@ -222,6 +222,6 @@ Priorities: **P0** = before the demo and before anyone outside sees the landing.
 5. **Framer badge and shared key.** The badge needs a paid plan; the key must be revoked.
 6. **Claims.** The deck still has two claims the app contradicts (step 12).
 
-## 10. Security notes
+## 9. Security notes
 - A Framer API key was pasted into a chat. Treat it as exposed: revoke it in the Framer project settings (API Keys) when the work is done. Never commit keys; this repo has none (checked).
 - The session network allow-list was extended with Framer hosts for reading references; it lives in the author's Claude environment, not in this repo.
