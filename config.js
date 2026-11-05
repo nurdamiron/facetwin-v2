@@ -13,6 +13,8 @@ export const CONFIG = {
   // Main path is Stripe Checkout through /api/checkout (keys in Vercel env vars, see README "Payments").
   // PAYMENT_LINKS above are only the fallback. Old unlock by URL (?paid=glow_y) stays OFF: anyone can type it.
   ALLOW_PAID_PARAM: false,
+  // ?tester=1 unlocks everything for the team. Works on localhost and with ?debug=1 only; set true to allow it on the public site (a demo, a review). Anyone who knows the URL can use it.
+  ALLOW_TESTER: false,
 
   // V2 plans (Glow editor + Pro). price = what she pays today, then = the recurring price.
   // Monthly plans start with a 20% first-month discount (Offer tab of the unit-economics sheet).

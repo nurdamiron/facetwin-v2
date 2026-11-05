@@ -1,8 +1,8 @@
 {
   "name": "FaceTwin",
   "short_name": "FaceTwin",
-  "description": "Try any look on your own face, then follow a 5-minute plan made for you.",
-  "start_url": "./#/today",
+  "description": "Fix your selfie in one tap: natural retouch that still looks like you.",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0E0E14",

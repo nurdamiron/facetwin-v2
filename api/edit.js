@@ -33,7 +33,8 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin) { try { if (new URL(origin).host !== req.headers.host) return res.status(403).json({ error: "Not allowed" }); } catch { return res.status(403).json({ error: "Not allowed" }); } }
   const key = (process.env.GEMINI_API_KEY || "").trim();
-  if (!key) return res.status(503).json({ error: "The AI editor is not set up yet." });
+  const MOCK = process.env.AI_MOCK === "1" && !process.env.VERCEL; // local tests only: returns the photo unchanged
+  if (!key && !MOCK) return res.status(503).json({ error: "The AI editor is not set up yet." });
 
   const { image, mime = "image/jpeg", id, text = "" } = req.body || {};
   if (typeof image !== "string" || image.length < 100 || image.length > MAX_B64 || !/^[A-Za-z0-9+/=]+$/.test(image.slice(0, 2000))) return res.status(400).json({ error: "Bad photo" });
@@ -45,6 +46,7 @@ export default async function handler(req, res) {
   const why = limited(ip);
   if (why) return res.status(429).json({ error: why });
 
+  if (MOCK && !key) return res.status(200).json({ image, mime, mock: true });
   const body = {
     contents: [{ role: "user", parts: [{ inline_data: { mime_type: mime, data: image } }, { text: promptFor(id, text) }] }],
     generationConfig: { responseModalities: ["IMAGE", "TEXT"] },

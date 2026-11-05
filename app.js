@@ -8,6 +8,8 @@ import { mountTwin3D, mountRelief, webglOK } from "./twin3d.js";
 import { buildHead, mountHead } from "./head3d.js";
 import { PREVIEWS, GROUPS, previewById, promptFor, cleanIdea } from "./previews.js";
 import { EXERCISES, exById, workoutFor, RepCounter } from "./exercises.js";
+import { ico } from "./icons.js";
+import { startIconPass } from "./iconpass.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -40,7 +42,9 @@ function load() {
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) {
-    // storage full: keep only the first and the latest scan photos
+    S.previews.forEach((q, i) => { if (i > 0) delete q.hd; }); // storage full: first drop the older HD files
+    try { localStorage.setItem(KEY, JSON.stringify(S)); return; } catch { /* keep trimming */ }
+    // still full: keep only the first and the latest scan photos
     S.scans = S.scans.map((s, i) => (i === 0 || i === S.scans.length - 1 ? s : { ...s, img: null }));
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { console.warn("[facetwin] storage full", e); }
   }
@@ -54,7 +58,10 @@ const sod = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(
 const daysBetween = (a, b) => Math.round((sod(b) - sod(a)) / DAY);
 const week = () => (S.startedAt ? Math.floor(daysBetween(new Date(S.startedAt), now()) / 7) + 1 : 1);
 const freeDay = () => (S.freeStart ? daysBetween(new Date(S.freeStart), now()) + 1 : 0);
-const isPaid = () => !!S.paid || !!S.flags.tester; // tester mode = everything unlocked
+const LOCAL = /^(localhost|127.0.0.1|[::1])$/.test(location.hostname);
+const testerOn = () => !!S.flags.tester && (CONFIG.ALLOW_TESTER || LOCAL || DEBUG); // team test switch: off on the public site unless allowed in config.js
+const isPaid = () => !!S.paid || testerOn(); // tester mode = everything unlocked
+const isPro = () => testerOn() || (!!S.paid && !String(S.paid).startsWith("glow")); // Glow plans do not include Pro (3D twin, all looks)
 const freeOver = () => !isPaid() && S.freeStart && freeDay() > CONFIG.FREE_DAYS;
 const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -88,7 +95,7 @@ function initPixel() {
 function track(name, params = {}) {
   if (window.fbq) STD.has(name) ? window.fbq("track", name, params) : window.fbq("trackCustom", name, params);
   console.info("[track]", name, params);
-  if (DEBUG && name !== "Screen") toast("📈 " + name);
+  if (DEBUG && name !== "Screen") toast("Event: " + name);
 }
 function trackOnce(name, params) {
   if (S.flags["t_" + name]) return;
@@ -188,8 +195,8 @@ function render() {
   let r = R[name];
   if (!r) { name = "landing"; r = R.landing; }
   if (r.needs && !S.photos.front) { name = "landing"; r = R.landing; }
-  if (r.app && !S.startedAt) { name = "paywall"; r = R.paywall; }
-  app.innerHTML = r.view(arg) + (r.tab && S.startedAt ? tabbar(r.tab) : "") + (S.flags.tester ? `<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);background:var(--yel);color:var(--ink);font-size:11px;font-weight:800;padding:3px 10px;border-radius:0 0 10px 10px;z-index:40">TESTER MODE · all unlocked</div>` : "");
+  if (r.app && !S.startedAt && !(r.glowOk && S.flags.glow)) { name = "paywall"; r = R.paywall; }
+  app.innerHTML = r.view(arg) + (r.tab && S.startedAt ? tabbar(r.tab) : "") + (testerOn() ? `<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);background:var(--yel);color:var(--ink);font-size:11px;font-weight:800;padding:3px 10px;border-radius:0 0 10px 10px;z-index:40">TESTER MODE · all unlocked</div>` : "");
   window.scrollTo(0, 0);
   track("Screen", { screen: name });
   if (r.mount) Promise.resolve(r.mount(arg)).catch((e) => { console.error(e); toast("Something went wrong. Try again."); });
@@ -216,18 +223,22 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") $$(".sheet
 ACT.back = () => (history.length > 1 ? history.back() : go(""));
 
 // =============== V2: GLOW (the landing is the editor) ===============
-const GLOW_CHIPS = ["Acne & spots", "Under-eye bags", "Wrinkles", "Teeth", "Freckles", "Glow"];
+const GLOW_FEATURES = [["clearskin", "Acne & spots"], ["undereye", "Under-eye bags"], ["wrinkles", "Wrinkles"], ["teeth", "Teeth"], ["frecklesOn", "Freckles"], ["glow", "Glow"]];
+const HOW = [["upload", "Upload a selfie", "Or try a demo face"], ["onetap", "Pick a retouch", "One tap, about 10 seconds"], ["compare", "Compare, then save", "Drag to see before and after"]];
 R.landing = {
-  view: () => `<div class="scr">
-    <div class="top">${wordmark()}${S.photos.front ? `<button class="pill chip" data-go="preview">My edits</button>` : ""}</div>
-    <h1 class="h1 xl">Fix your selfie <span class="hl">in one tap</span></h1>
-    <p class="sub">Natural retouch that still looks like you. See the before and after in seconds.</p>
-    <div class="wrap">${GLOW_CHIPS.map((c) => `<span class="chip sm on">${c}</span>`).join("")}</div>
-    <div class="photo" style="aspect-ratio:3/4;max-height:40vh;background:var(--lilac)"><img src="assets/demo/front.jpg" alt="Example photo"><span class="tl"><span class="pill dark">Example</span></span></div>
-    <label class="cta inline" style="cursor:pointer;text-align:center">Upload a selfie ${ICON.arrow}<input type="file" accept="image/*" hidden id="glowUpl"></label>
-    <button class="link" data-act="glowDemo">Try it with a demo face</button>
-    <button class="link" data-go="meet3d">Meet your 3D twin (Pro) ›</button>
-    <p class="small center">Your photo goes to an AI editor only when you tap Show me, and only with your OK. We don't store it. Face care, not medical advice.</p>
+  view: () => `<div class="scr land">
+    <div class="top">${wordmark()}${S.photos.front ? `<button class="pill chip" data-go="preview">My edits</button>` : `<span class="pill dark">${ico("shield", 14)} Private by design</span>`}</div>
+    <div class="hero">
+      <h1 class="h1 xl">Fix your selfie <span class="hl">in one tap</span></h1>
+      <p class="sub">Natural retouch that still looks like you. Real skin texture, no filter look. See the before and after in seconds.</p>
+    </div>
+    <label class="cta inline" style="cursor:pointer;text-align:center">${ico("camera", 24)} Upload a selfie<input type="file" accept="image/*" hidden id="glowUpl"></label>
+    <button class="ghost" data-act="glowDemo">${ico("sparkles", 20)} Try it with a demo face</button>
+    <div class="photo hero-photo"><img src="assets/demo/front.jpg" alt="Demo face"><span class="tl"><span class="pill dark">${ico("sparkles", 14)} Demo face</span></span></div>
+    <div class="feat">${GLOW_FEATURES.map(([ic, name], i) => `<div class="feat-i"><span class="tbub sm" style="--tc:${TINT[i % TINT.length]}">${ico(ic, 24)}</span><span>${name}</span></div>`).join("")}</div>
+    <div class="how">${HOW.map(([ic, t, s], i) => `<div class="how-i"><span class="how-n">${ico(ic, 22)}</span><span><b>${t}</b><small>${s}</small></span></div>`).join("")}</div>
+    <div class="trust">${ico("shield", 22)}<p class="small">Your photo goes to an AI editor only when you tap Show me, and only with your OK. We don't store it. Face care, not medical advice.</p></div>
+    <p class="small center"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
   </div>`,
   mount: () => bindGlowUpload(),
 };
@@ -301,7 +312,7 @@ R.looks = {
     <p class="sub">Pick up to 3. We'll show them realistically on your own face, in 3D.</p>
     <div class="grid2">${PREVIEWS.filter((p) => p.pick).map((p, i) => {
       const on = S.wants.includes(p.id);
-      return `<button class="tile ${on ? "on" : ""}" style="height:96px;background:${PASTEL[i % 6]};flex-direction:column;align-items:flex-start;justify-content:space-between;padding:12px" data-act="pickWant" data-v="${p.id}" aria-pressed="${on}"><span style="font-size:26px">${p.emoji}</span><span style="font-size:13px">${p.name}</span><span class="ck">✓</span></button>`;
+      return tile(p.icon, p.name, { on, i, attrs: `data-act="pickWant" data-v="${p.id}"` });
     }).join("")}</div>
     <button class="cta" data-act="looksNext" ${S.wants.length ? "" : "disabled"}>${S.wants.length ? `${S.wants.length} picked · next` : "Pick at least 1"}</button></div>`,
 };
@@ -752,7 +763,7 @@ R.twin = {
       </div>
       <button class="row" data-go="coach" style="background:var(--lilac);color:var(--ink)"><span><b>💪 Train your jawline with your camera</b><small style="color:var(--ink);opacity:.7">Live rep counting and form checks · try one free</small></span><span class="r">›</span></button>
       <div class="top"><b style="font-size:17px">See these on you</b><span class="small">realistic AI preview</span></div>
-      <div class="grid2">${suggestions().map((id, i) => { const p = previewById(id); return `<button class="tile" style="height:84px;background:${PASTEL[i % 6]};flex-direction:column;align-items:flex-start;justify-content:space-between;padding:12px" data-go="preview/${id}"><span style="font-size:22px">${p.emoji}</span><span>${p.name} ›</span></button>`; }).join("")}</div>
+      <div class="grid2">${suggestions().map((id, i) => { const p = previewById(id); return tile(p.icon, p.name, { i, attrs: `data-go="preview/${id}"` }); }).join("")}</div>
       ${S.goal === "jaw" ? `<button class="cta" data-go="coach">Start my face workout · free</button><button class="link" data-act="twinNext">Save my twin + get my plan</button>` : aiOn ? `<button class="cta" data-go="preview/${first}">See ${esc(previewById(first).name.toLowerCase())} on me · free</button>
         <button class="link" data-act="twinNext">Skip, get my plan</button>`
         : `<button class="cta" data-act="twinNext">Save my report + get my plan</button>`}
@@ -793,7 +804,11 @@ app.addEventListener("input", (e) => {
 const previewOf = (id) => S.previews.find((p) => p.id === id);
 const previewsLeft = () => (isPaid() ? Infinity : Math.max(0, CONFIG.FREE_PREVIEWS - S.previewsUsed));
 const entryName = (q) => q.name || previewById(q.id)?.name || "Your look";
-const entryEmoji = (q) => q.emoji || previewById(q.id)?.emoji || "✨";
+const entryIcon = (q) => q.icon || previewById(q.src || q.id)?.icon || "sparkles";
+const TINT = ["var(--peach)", "var(--lilac)", "var(--blue)", "var(--yel)", "var(--pink)", "var(--mint)"];
+// the big picker tile: a 56px icon bubble, the name below, a check when selected
+const tile = (icon, label, { on = false, done = false, i = 0, attrs = "" } = {}) =>
+  `<button class="tile2 ${on ? "on" : ""}" ${attrs} aria-pressed="${on}"><span class="tbub" style="--tc:${TINT[i % TINT.length]}">${ico(icon, 30)}</span><span class="tlabel">${esc(label)}</span>${on ? `<span class="tck">${ico("check", 14)}</span>` : done ? `<span class="tdone">${ico("check", 12)}</span>` : ""}</button>`;
 const changeKey = (sel) => (ui.base ? ui.base.id + "+" + sel : sel);
 R.preview = {
   needs: true, tab: "preview",
@@ -805,26 +820,26 @@ R.preview = {
     const before = base ? base.img : S.photos.front, ai = ui.ai;
     return `<div class="scr ${S.startedAt ? "tabbed" : ""}">
       <div class="top">${S.startedAt ? `<span class="h1" style="font-size:28px">${S.flags.glow ? "Retouch" : "Try a new look"}</span>` : `${backBtn(S.flags.glow ? "landing" : "twin")}<span class="h1" style="font-size:24px">${S.flags.glow ? "Retouch" : "Try a new look"}</span>`}
-        <span class="pill ${left === Infinity ? "" : "chip"}">${left === Infinity ? "Unlimited" : `${left} free`}</span></div>
-      ${shown && ui.prev3d ? `<div class="photo" id="pv3" style="aspect-ratio:3/4;max-height:52vh;background:radial-gradient(circle at 50% 38%,#2b2440,#0E0E14 72%)"><div id="pvWait" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"><div class="spin"></div><span class="small">Putting your new look on your 3D twin…</span></div><span class="tl"><span class="pill dark">${entryEmoji(shown)} ${esc(entryName(shown))} · 3D</span></span><span class="bc"><span class="pill" style="background:rgba(245,243,247,.14)">↔ drag to turn</span></span></div>`
+        <span class="row-r"><span class="pill ${left === Infinity ? "" : "chip"}">${left === Infinity ? "Unlimited" : `${left} free`}</span>${S.flags.glow ? `<button class="iconbtn" data-go="account" aria-label="Account and plan">${ico("user", 22)}</button>` : ""}</span></div>
+      ${shown && ui.prev3d ? `<div class="photo" id="pv3" style="aspect-ratio:3/4;max-height:52vh;background:radial-gradient(circle at 50% 38%,#2b2440,#0E0E14 72%)"><div id="pvWait" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"><div class="spin"></div><span class="small">Putting your new look on your 3D twin…</span></div><span class="tl"><span class="pill dark">${ico(entryIcon(shown), 16)} ${esc(entryName(shown))} · 3D</span></span><span class="bc"><span class="pill" style="background:rgba(245,243,247,.14)">↔ drag to turn</span></span></div>`
         : shown ? compareHTML(S.photos.front, shown.img, "You now", esc(entryName(shown)))
         : `<div class="photo" style="aspect-ratio:3/4;max-height:52vh"><img src="${before}" alt="Your photo">
-            <span class="tl"><span class="pill dark">${p.emoji} ${esc(p.name)}</span></span>
+            <span class="tl"><span class="pill dark">${ico(p.icon, 16)} ${esc(p.name)}</span></span>
             ${base ? `<span class="tr"><span class="pill">on top of ${esc(entryName(base))}</span></span>` : ""}
             ${ui.busy ? `<div style="position:absolute;inset:0;background:rgba(14,14,20,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px"><div class="spin"></div><b id="busyMsg">Creating your look…</b><span class="small">Usually 5–15 seconds</span></div>` : ""}</div>`}
       ${shown && !ui.prev3d ? `<p class="small center">Drag the line to compare · AI preview, a simulation of the change</p>` : ""}
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
-      <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${g}</button>`).join("")}</div>
+      <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${S.flags.glow && g !== "Glow" && !isPro() ? ico("lock", 13) + " " : ""}${g}</button>`).join("")}</div>
       ${group === "Your idea" ? `<div class="card" style="gap:8px"><b>Describe any change to your face or hair</b>
           <textarea id="ctext" rows="2" maxlength="200" placeholder="e.g. a short curly fade and a thin mustache" style="width:100%;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--text);padding:12px;font:inherit;font-weight:700;resize:none">${esc(ui.ctext || "")}</textarea>
           <small class="small">Keep it to your face and hair. The AI keeps everything else the same.</small></div>`
-        : `<div class="grid3">${PREVIEWS.filter((q) => q.group === group).map((q, i) => `<button class="tile ${q.id === sel ? "on" : ""}" style="height:78px;background:${PASTEL[i % 6]};flex-direction:column;align-items:flex-start;justify-content:space-between;padding:10px" data-act="prevSel" data-v="${q.id}" aria-pressed="${q.id === sel}"><span style="font-size:22px">${q.emoji}</span><span style="font-size:12px">${esc(q.name)}${previewOf(changeKey(q.id)) ? " ✓" : ""}</span><span class="ck">✓</span></button>`).join("")}</div>`}
+        : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
       ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add your Gemini API key (README → Realistic previews), then restart." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
           ${S.startedAt ? `<button class="link" style="text-align:left;color:var(--ink);text-decoration:underline" data-go="studio">Use the instant drawn try-on meanwhile</button>` : ""}</div>` : ""}
-      ${shown ? `<div class="grid2"><button class="ghost" data-act="prev3d">${ui.prev3d ? "Compare 2D" : "View in 3D"}</button><button class="ghost" data-act="stackOn">＋ Add a change on top</button></div>
-          <div class="grid2"><button class="ghost" data-act="prevAgain">Try again</button><button class="ghost" data-act="prevSave">Save photo</button></div>`
-        : `<button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? "Working…" : group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}</button>`}
-      ${!S.startedAt && S.previews.length ? (S.flags.glow ? (isPaid() ? `<button class="cta" data-act="prevSave">Download in HD</button>` : `<button class="cta" data-go="paywall">Download in HD</button>`) : `<button class="cta" data-act="twinNext">Save my looks + start</button>`) : ""}
+      ${shown ? `<div class="grid2"><button class="ghost" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 20)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !isPro() && !ui.prev3d ? ` <span class="pro-tag">Pro</span>` : ""}</button><button class="ghost" data-act="stackOn">${ico("plus", 20)} Add a change</button></div>
+          <div class="grid2"><button class="ghost" data-act="prevAgain">${ico("refresh", 20)} Try again</button><button class="ghost" data-act="prevSave">${ico(S.flags.glow && !isPaid() ? "lock" : "download", 20)} ${S.flags.glow ? "Download HD" : "Save photo"}</button></div>`
+        : `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>`}
+      ${!S.startedAt && S.previews.length ? (S.flags.glow ? (isPaid() ? `<button class="cta" data-act="prevSave">${ico("download", 22)} Download in HD</button>` : `<button class="cta" data-go="paywall">${ico("lock", 22)} Download in HD</button>`) : `<button class="cta" data-act="twinNext">Save my looks + start</button>`) : ""}
       ${S.previews.length ? `<div class="top"><b style="font-size:15px">Your looks</b><span class="small">${S.previews.length}</span></div>
         <div class="scroll-x">${S.previews.map((q) => `<button data-act="prevShow" data-v="${esc(q.id)}" style="border:0;padding:0;background:none;cursor:pointer;width:84px;height:110px;border-radius:16px;overflow:hidden;flex:none;${shown && q.id === shown.id ? "outline:3px solid var(--p);outline-offset:-3px" : ""}"><img src="${q.img}" alt="${esc(entryName(q))}" style="width:100%;height:100%;object-fit:cover"></button>`).join("")}</div>` : ""}
       ${S.startedAt ? `<button class="link" data-go="studio">Instant drawn try-on (hair colors, brows)</button>` : ""}
@@ -852,7 +867,7 @@ R.preview = {
   },
 };
 ACT.prev3d = () => {
-  if (S.flags.glow && !isPaid() && !ui.prev3d) return upsell("The 3D twin is part of Pro");
+  if (S.flags.glow && !isPro() && !ui.prev3d) return upsell("The 3D twin is part of Pro", "pro");
   ui.prev3d = !ui.prev3d; render();
 };
 ACT.prevGroup = (g) => {
@@ -877,6 +892,7 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
   const left = previewsLeft();
   if (!left) return upsell("You've used your free look");
   const p = previewById(id); if (!p) return;
+  if (S.flags.glow && !isPro() && p.group !== "Glow") return upsell("Hair, brows and beard looks are part of Pro", "pro");
   if (!S.aiOk) return askAIConsent(() => ACT.prevGen(id, _el, _e, redo)); // the photo leaves the device: ask first
   let text = "";
   if (id === "custom") {
@@ -893,11 +909,13 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
     const r = await fetch("api/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: src.split(",")[1], mime: "image/jpeg", prompt: promptFor(id, text), id, text }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.image) throw new Error(j.error || "The preview didn't work. Try again.");
-    const out = toCanvas(await loadImg(`data:${j.mime || "image/png"};base64,${j.image}`), 720).toDataURL("image/jpeg", 0.85);
-    const own = id === "custom" ? { name: text.length > 28 ? text.slice(0, 27) + "…" : text, emoji: "✍️", text } : { name: p.name, emoji: p.emoji };
+    const big = await loadImg(`data:${j.mime || "image/png"};base64,${j.image}`);
+    const out = toCanvas(big, 720).toDataURL("image/jpeg", 0.85), hd = toCanvas(big, 1600).toDataURL("image/jpeg", 0.92); // hd = what "Download in HD" saves
+    const own = id === "custom" ? { name: text.length > 28 ? text.slice(0, 27) + "…" : text, icon: "pencil", text } : { name: p.name, icon: p.icon };
     const key = id === "custom" ? (base ? base.id + "+" : "") + "custom" + Date.now().toString(36) : base ? base.id + "+" + id : id;
-    const entry = { id: key, src: id, img: out, date: dkey(), ...own, ...(base ? { baseId: base.id, name: entryName(base) + " + " + own.name } : {}) };
+    const entry = { id: key, src: id, img: out, hd, date: dkey(), ...own, ...(base ? { baseId: base.id, name: entryName(base) + " + " + own.name } : {}) };
     S.previews = [entry, ...S.previews.filter((q) => q.id !== key)].slice(0, 12);
+    S.previews.forEach((q, i) => { if (i >= 4) delete q.hd; }); // keep HD files for the latest 4 only (browser storage is small)
     if (!isPaid()) S.previewsUsed++;
     save(); track("PreviewGenerated", { preview: id, stacked: !!base, mock: !!j.mock });
     ui.prevKey = key; ui.base = null; ui.prev3d = S.flags.glow ? false : HAS3D; // V1 flow shows the new look on the 3D twin first
@@ -908,7 +926,7 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
 ACT.prevSave = async () => {
   const q = ui.prevKey ? previewOf(ui.prevKey) : previewOf(changeKey(ui.prevSel)); if (!q) return;
   if (S.flags.glow && !isPaid()) return upsell("Download in HD with Glow"); // V2: saving the file is behind the paywall
-  const blob = await (await fetch(q.img)).blob();
+  const blob = await (await fetch(q.hd || q.img)).blob();
   download(blob, `facetwin-${q.id.replace(/[^a-z0-9+-]/gi, "")}.jpg`); track("PreviewSaved", { preview: q.id });
 };
 
@@ -941,12 +959,23 @@ ACT.aiAgree = () => {
   $$(".sheet-bg").forEach((n) => n.remove());
   const f = ui.afterConsent; ui.afterConsent = null; if (f) f();
 };
-function upsell(title) {
-  track("UpsellShown", { reason: title });
-  sheet(`<h2 class="h1" style="font-size:26px">${esc(title)}</h2>
-    <p class="sub">${S.flags.glow ? "Glow: unlimited natural retouch, saved in HD. Pro adds your 3D twin, a 12-week plan and weekly before and after." : "Unlimited realistic previews, your full face report and 12-week plan with products, and weekly before/after."}</p>
-    <button class="cta inline" data-go="paywall">See plans</button><button class="link" data-close>Not now</button>`);
+function upsell(title, want = "glow") {
+  track("UpsellShown", { reason: title, want });
+  const pro = want === "pro";
+  sheet(`<span class="tbub" style="--tc:var(--lilac)">${ico(pro ? "crown" : "lock", 30)}</span>
+    <h2 class="h1" style="font-size:26px">${esc(title)}</h2>
+    <p class="sub">${S.flags.glow ? (pro ? "Pro: everything in Glow, plus your 3D twin and the hair, brows and beard looks." : "Glow: unlimited natural retouch, saved in HD. Pro adds your 3D twin and all looks.") : "Unlimited realistic previews, your full face report and 12-week plan with products, and weekly before/after."}</p>
+    <button class="cta inline" data-act="seePlans" data-v="${want}">See plans</button><button class="link" data-close>Not now</button>`);
 }
+ACT.seePlans = (want) => {
+  if (S.flags.glow) {
+    const tier = (id) => (CONFIG.PLANS_GLOW.find((q) => q.id === id) || {}).tier;
+    if (want === "pro" && tier(S.chosen) !== "Pro") S.chosen = "pro_y";
+    if (want !== "pro" && !tier(S.chosen)) S.chosen = "glow_y";
+    save();
+  }
+  go("paywall");
+};
 ACT.saveLook = async () => {
   if (!S.applied.length) return toast("Turn on a look first");
   const key = [...S.applied].sort().join("+");
@@ -956,7 +985,7 @@ ACT.saveLook = async () => {
   const thumb = toCanvas(c, 260).toDataURL("image/jpeg", 0.8);
   S.saved.unshift({ key, ids: [...S.applied], thumb, date: dkey() });
   save(); track("AddToWishlist", { content_name: key });
-  toast("Saved to your looks ♡");
+  toast("Saved to your looks");
 };
 ACT.twinNext = () => go(S.email ? "paywall" : "signup");
 
@@ -1000,19 +1029,22 @@ const renewText = (pl) => pl.period === "month"
 function glowPaywall() {
   if (!CONFIG.PLANS_GLOW.some((p) => p.id === S.chosen)) { S.chosen = "glow_y"; save(); }
   const last = S.previews[0], p = planById(S.chosen);
+  const perks = [
+    ["Glow", "var(--pink)", [["onetap", "Unlimited natural retouch"], ["download", "HD download, no watermark"]]],
+    ["Pro", "var(--lilac)", [["cube", "Your 3D twin"], ["scissors", "Hair, brows and beard looks"]]],
+  ];
+  const plan = (q) => `<button class="plan ${S.chosen === q.id ? "on" : ""}" data-act="choose" data-v="${q.id}">${q.popular ? `<span class="badge">Best value</span>` : ""}<span><b>${q.name}</b><small>${q.note}</small></span><span class="price">$${q.price.toFixed(2)}</span></button>`;
   return `<div class="scr" style="gap:12px">
-    <div class="top">${backBtn("preview")}<span class="pill" style="background:var(--pink);color:var(--ink)">HD · no limits</span></div>
-    ${last ? `<div class="photo" style="height:190px;border-radius:24px"><img src="${last.img}" alt="Your edit"><span class="tl"><span class="pill dark">${entryEmoji(last)} ${esc(entryName(last))}</span></span></div>` : ""}
+    <div class="top">${backBtn("preview")}<span class="pill" style="background:var(--pink);color:var(--ink)">${ico("download", 14)} HD, no limits</span></div>
+    ${last ? `<div class="photo" style="height:170px;border-radius:24px"><img src="${last.img}" alt="Your edit"><span class="tl"><span class="pill dark">${ico(entryIcon(last), 16)} ${esc(entryName(last))}</span></span></div>` : ""}
     <h1 class="h1" style="font-size:30px">Download in HD. <span class="hl">Keep editing.</span></h1>
-    <div class="col" style="font-size:14px;font-weight:700;gap:7px">
-      ${["Glow: every retouch, unlimited, saved in HD", "Pro: your 3D twin, a 12-week plan, weekly before and after"].map((t) => `<div class="top" style="justify-content:flex-start"><span class="dot on" style="width:24px;height:24px;font-size:12px">✓</span>${t}</div>`).join("")}
-    </div>
-    <div class="col">${CONFIG.PLANS_GLOW.map((q) => `<button class="plan ${S.chosen === q.id ? "on" : ""}" data-act="choose" data-v="${q.id}">${q.popular ? `<span class="badge">Best value</span>` : ""}<span><b>${q.name}</b><small>${q.note}</small></span><span class="price">$${q.price.toFixed(2)}</span></button>`).join("")}</div>
+    <div class="grid2">${perks.map(([tier, bg, items]) => `<div class="card perk"><span class="pill" style="background:${bg};color:var(--ink);align-self:flex-start">${tier}</span>${items.map(([ic, t]) => `<div class="perk-i">${ico(ic, 20)}<span>${t}</span></div>`).join("")}</div>`).join("")}</div>
+    <div class="col"><span class="small tiers">Glow</span>${CONFIG.PLANS_GLOW.filter((q) => q.tier === "Glow").map(plan).join("")}<span class="small tiers">Pro</span>${CONFIG.PLANS_GLOW.filter((q) => q.tier === "Pro").map(plan).join("")}</div>
     <p class="small center" id="renewLine" style="font-size:12px;font-weight:800">${renewText(p)}</p>
-    <label class="row" style="cursor:pointer"><input type="checkbox" id="renewOk" style="width:22px;height:22px;flex:none"><span><b>I agree to the renewal terms above</b><small>Cancel anytime from your receipt email.</small></span></label>
-    <button class="cta" data-act="checkout">Continue</button>
+    <label class="row" style="cursor:pointer"><input type="checkbox" id="renewOk" style="width:22px;height:22px;flex:none"><span><b>I agree to the renewal terms above</b><small>Cancel anytime in Settings, in 2 taps.</small></span></label>
+    <button class="cta" data-act="checkout">${ico("lock", 22)} Continue to secure checkout</button>
     <button class="link" data-act="notNow">Not now</button>
-    <p class="small center" style="font-size:11px"><a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · Face care and photo editing, not medical advice.</p></div>`;
+    <p class="small center" style="font-size:11px">Payments by Stripe. <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · Face care and photo editing, not medical advice.</p></div>`;
 }
 R.paywall = {
   needs: true,
@@ -1053,7 +1085,7 @@ ACT.checkout = async (_v, el) => {
   track("InitiateCheckout", { value: p.price, currency: CONFIG.CURRENCY, content_name: p.id });
   postLead({ step: "checkout" });
   const link = CONFIG.PAYMENT_LINKS[p.id];
-  if (S.flags.tester) {
+  if (testerOn()) {
     S.paid = p.id; if (!S.flags.glow) S.startedAt = S.startedAt || now().toISOString(); save();
     toast("Tester mode: plan unlocked, no payment"); go(S.flags.glow ? "preview" : "welcome"); return;
   }
@@ -1197,7 +1229,7 @@ R.today = {
       <div class="card" style="background:var(--lilac);color:var(--ink);flex-direction:row;justify-content:space-between;align-items:center">
         <div><div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Today's routine</div>
           <div class="h1" style="font-size:26px">${n} of ${open.length} done</div>
-          <div class="small" style="color:var(--ink);opacity:.7;font-weight:700">${open.length - n ? `About ${Math.max(1, Math.round(open.filter((s) => !done.includes(s.id)).reduce((a, s) => a + s.min, 0)))} min left` : "All done for today 🎉"}</div></div>
+          <div class="small" style="color:var(--ink);opacity:.7;font-weight:700">${open.length - n ? `About ${Math.max(1, Math.round(open.filter((s) => !done.includes(s.id)).reduce((a, s) => a + s.min, 0)))} min left` : "All done for today"}</div></div>
         <svg width="76" height="76" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="32" fill="none" stroke="#fff" stroke-width="10"/><circle cx="40" cy="40" r="32" fill="none" stroke="#7C4DFF" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${100 - pct * 100}" transform="rotate(-90 40 40)" opacity="${pct ? 1 : 0}"/></svg></div>
       ${am.length ? `<div class="small" style="font-weight:800;letter-spacing:.08em;text-transform:uppercase">Morning</div><div class="col">${am.map((s) => stepRow(s, done.includes(s.id))).join("")}</div>` : ""}
       ${pm.length ? `<div class="small" style="font-weight:800;letter-spacing:.08em;text-transform:uppercase">Evening</div><div class="col">${pm.map((s) => stepRow(s, done.includes(s.id))).join("")}</div>` : ""}
@@ -1455,7 +1487,7 @@ R.coach = {
         <span class="pill">🔥 ${st} ${st === 1 ? "day" : "days"}</span></div>
       <div class="card" style="background:var(--lilac);color:var(--ink);gap:10px">
         <div class="top"><div><div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Today · jawline + cheeks</div>
-          <div class="h1" style="font-size:26px">${n === ids.length ? "Done for today 🎉" : `${ids.length} exercises · ~${mins} min`}</div></div>
+          <div class="h1" style="font-size:26px">${n === ids.length ? "Done for today" : `${ids.length} exercises · ~${mins} min`}</div></div>
           ${exDemo("jaw", 64)}</div>
         <div style="display:flex;gap:6px">${ids.map((id) => `<span style="flex:1;height:8px;border-radius:4px;background:${today.has(id) ? "#7C4DFF" : "rgba(14,14,20,.15)"}"></span>`).join("")}</div>
         <button class="cta inline" style="margin:0" data-act="woStart">${n && n < ids.length ? "Continue workout" : n === ids.length ? "Do it again" : "Start workout"}</button>
@@ -1463,7 +1495,7 @@ R.coach = {
       <div class="row" style="background:var(--card)"><span><b>📷 Your camera is your coach</b><small>It counts every rep and checks your form live. Nothing is recorded.</small></span></div>
       <div class="top"><b style="font-size:17px">All exercises</b><span class="small">${EXERCISES.length}</span></div>
       <div class="col">${EXERCISES.map((e, i) => { const l = exLast(e.id); return `<button class="row" data-go="ex/${e.id}" style="text-align:left">
-        <span style="display:flex;gap:12px;align-items:center"><span style="width:46px;height:46px;border-radius:14px;background:${PASTEL[i % 6]};display:flex;align-items:center;justify-content:center;font-size:24px;flex:none">${e.emoji}</span>
+        <span style="display:flex;gap:12px;align-items:center"><span style="width:46px;height:46px;border-radius:14px;background:${PASTEL[i % 6]};display:flex;align-items:center;justify-content:center;flex:none;color:var(--ink)">${ico(e.icon, 26)}</span>
         <span><b>${e.name}</b><small>${e.area} · ${e.reps} reps${e.phases[0].hold ? ` × ${e.phases[0].hold / 1000}s hold` : ""}${l ? ` · last reach ${l.rom}%` : ""}</small></span></span>
         <span class="r">${today.has(e.id) ? "✓" : "›"}</span></button>`; }).join("")}</div>
       ${HAS3D ? `<button class="row" data-go="twin"><span><b>My 3D twin</b><small>See your face from every side</small></span><span class="r">›</span></button>` : ""}
@@ -1498,7 +1530,7 @@ R.ex = {
             <div class="card" style="padding:12px;gap:4px;border-radius:20px"><small class="small">Form</small><b style="font-size:18px">${r.form}%</b></div>
             <div class="card" style="padding:12px;gap:4px;border-radius:20px"><small class="small">Time</small><b style="font-size:18px">${fmt(r.secs)}</b></div></div>
           <p class="sub" style="font-size:14px">${f && f !== exLast(e.id) && r.rom > f.rom ? `Your reach is up ${r.rom - f.rom} points since your first time.` : "Reach = how far you moved, compared with a full standard range. It grows as the muscles get stronger."}</p></div>
-        ${next ? `<button class="cta" data-act="woNext">Next: ${esc(next.name)} ${next.emoji}</button>` : wo ? `<button class="cta" data-act="woNext">Finish workout</button>` : `<button class="cta" data-act="exAgain">Do it again</button><button class="link" data-go="coach">Back to exercises</button>`}
+        ${next ? `<button class="cta" data-act="woNext">Next: ${esc(next.name)}</button>` : wo ? `<button class="cta" data-act="woNext">Finish workout</button>` : `<button class="cta" data-act="exAgain">Do it again</button><button class="link" data-go="coach">Back to exercises</button>`}
       </div>`;
     }
     if (!ui.exLive) {
@@ -1514,7 +1546,7 @@ R.ex = {
       <div class="photo" id="exStage" style="aspect-ratio:3/4;max-height:64vh;background:#0E0E14">
         <video id="exCam" playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
         <canvas id="exDots" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
-        <span class="tl"><span class="pill dark">${e.emoji} ${esc(e.name)}</span></span>
+        <span class="tl"><span class="pill dark">${ico(e.icon, 16)} ${esc(e.name)}</span></span>
         <span class="tr" style="display:flex;flex-direction:column;align-items:center;gap:6px">
           <span style="position:relative;width:16px;height:150px;border-radius:8px;background:rgba(245,243,247,.18);overflow:hidden">
             <span id="exMeter" style="position:absolute;left:0;right:0;bottom:0;height:0;background:#7C4DFF;transition:height .08s"></span>
@@ -1614,7 +1646,7 @@ async function runExercise(e) {
       const r = $("#exReps"); if (r) r.textContent = st.reps;
       const bar = $(`[data-rep="${st.reps - 1}"]`); if (bar) bar.style.background = "var(--p)";
       navigator.vibrate?.(60); beep(980, 110); if (!e.phases[0].say) say(String(st.reps));
-      if (st.done) { setCue("Done! 🎉", true); setTimeout(finish, 700); }
+      if (st.done) { setCue("Done!", true); setTimeout(finish, 700); }
     }
   };
   requestAnimationFrame(loop);
@@ -1631,7 +1663,7 @@ R.wodone = {
           <span style="font-size:46px;line-height:1">🔥</span><span style="font-family:var(--h);font-size:58px;font-weight:800;line-height:1">${st}</span><span style="font-size:13px;font-weight:800">day streak</span></div>
         <h1 class="h1 xl">Workout done. <span class="hl">Nice work.</span></h1>
         <div class="grid3" style="width:100%">${[["Reps", reps], ["Avg reach", rom + "%"], ["Time", fmt(secs)]].map(([k, v]) => `<div class="card" style="padding:12px;gap:4px;border-radius:20px"><small class="small">${k}</small><b style="font-size:18px">${v}</b></div>`).join("")}</div>
-        <div class="col" style="width:100%">${rs.map((r) => { const e = exById(r.id); return `<div class="row"><span><b>${e.emoji} ${esc(e.name)}</b><small>${r.reps}/${r.target} reps · form ${r.form}%</small></span><span class="r">${r.rom}%</span></div>`; }).join("")}</div></div>
+        <div class="col" style="width:100%">${rs.map((r) => { const e = exById(r.id); return `<div class="row"><span><b>${esc(e.name)}</b><small>${r.reps}/${r.target} reps · form ${r.form}%</small></span><span class="r">${r.rom}%</span></div>`; }).join("")}</div></div>
       <button class="cta inline" data-go="progress">See my progress</button>
       <button class="link" data-go="preview">Try a new look on your twin</button></div>`;
   },
@@ -1656,7 +1688,7 @@ function exProgressHTML() {
   const delta = pts.length > 1 ? pts[pts.length - 1] - pts[0] : 0;
   return `<div class="card"><div class="top"><b style="font-size:15px">Face workout · reach</b><span style="font-family:var(--h);font-size:22px;font-weight:800;color:var(--pl)">${delta > 0 ? "+" : ""}${delta}</span></div>${exChart()}
       <div class="top small" style="font-weight:700"><span>${days.length} workout ${days.length === 1 ? "day" : "days"}</span><span>🔥 ${exStreak()}</span></div></div>
-    ${tried.length ? `<div class="col">${tried.map((e) => { const f = exFirst(e.id), l = exLast(e.id), d = l.rom - f.rom; return `<div class="row"><span><b>${e.emoji} ${esc(e.name)}</b><small>first ${f.rom}% → now ${l.rom}% · form ${l.form}%</small></span><span class="r" style="color:${d > 0 ? "var(--pl)" : "inherit"}">${d > 0 ? "+" : ""}${d}</span></div>`; }).join("")}</div>` : ""}`;
+    ${tried.length ? `<div class="col">${tried.map((e) => { const f = exFirst(e.id), l = exLast(e.id), d = l.rom - f.rom; return `<div class="row"><span><b>${esc(e.name)}</b><small>first ${f.rom}% → now ${l.rom}% · form ${l.form}%</small></span><span class="r" style="color:${d > 0 ? "var(--pl)" : "inherit"}">${d > 0 ? "+" : ""}${d}</span></div>`; }).join("")}</div>` : ""}`;
 }
 
 // ---------- progress ----------
@@ -1706,19 +1738,19 @@ async function buildShareCard(canvas) {
   if (multi) {
     before = { img: await loadImg(S.scans[0].img), a: S.scans[0].a };
     after = { img: await loadImg(latest().img), a: latest().a };
-    headline = `${week()} ${week() === 1 ? "week" : "weeks"}, ${S.minutes} min a day 🔥`;
+    headline = `${week()} ${week() === 1 ? "week" : "weeks"}, ${S.minutes} min a day`;
     const f = S.scans[0].a, l = latest().a;
-    if (l.texture < f.texture - 0.05) stickers.push("smoother skin ✓");
-    if (l.redness < f.redness - 0.05) stickers.push("calmer skin ✓");
-    if (l.darkCircles < f.darkCircles - 0.05) stickers.push("brighter under-eyes ✓");
-    if (streak() > 2) stickers.push(`${streak()}-day streak 🔥`);
+    if (l.texture < f.texture - 0.05) stickers.push("smoother skin");
+    if (l.redness < f.redness - 0.05) stickers.push("calmer skin");
+    if (l.darkCircles < f.darkCircles - 0.05) stickers.push("brighter under-eyes");
+    if (streak() > 2) stickers.push(`${streak()}-day streak`);
     pill(`Week ${week()}`, W - 330, 88, "#0E0E14", "#F5F3F7");
   } else {
     const c1 = document.createElement("canvas"), c2 = document.createElement("canvas");
     await drawPhoto(c1, "front", [], true); await drawPhoto(c2, "front", S.applied.length ? S.applied : ["round"]);
     before = { img: c1, a: S.analysis }; after = { img: c2, a: S.analysis };
     headline = `Tried ${looksOn().join(" + ") || "a new look"} on my own face`;
-    stickers = ["before I commit ✓", "made with my twin"];
+    stickers = ["before I commit", "made with my twin"];
     pill("New look", W - 330, 88, "#0E0E14", "#F5F3F7");
   }
   const cardW = 440, cardH = 760, y0 = 260;
@@ -1788,9 +1820,31 @@ ACT.shareTo = async (how) => {
 };
 
 // =============== ACCOUNT, REMINDERS, PRIVACY ===============
+// Account for the Glow flow: plan, upgrade, manage subscription (Stripe portal), privacy, help.
+function glowAccount() {
+  const p = S.paid ? planById(S.paid) : null, pro = isPro(), left = previewsLeft();
+  const row = (ic, t, s, attrs, tag = "button") => `<${tag} class="row" ${attrs}><span class="rowi">${ico(ic, 24)}</span><span class="grow"><b>${t}</b><small>${s}</small></span>${ico("next", 20)}</${tag}>`;
+  return `<div class="scr">
+    <div class="top">${backBtn("preview")}<span class="pill chip">Account</span><span class="spacer"></span></div>
+    <h1 class="h1">Your plan</h1>
+    <div class="card plan-card">
+      <div class="top"><span class="eyebrow-w">${p ? "Active" : "Free plan"}</span><span class="pill" style="background:#fff;color:var(--ink)">${pro ? "Pro" : p ? "Glow" : "Free"}</span></div>
+      <span class="h1" style="font-size:28px">${p ? `${p.name} · $${p.price.toFixed(2)}` : `${left} free ${left === 1 ? "edit" : "edits"} left`}</span>
+      <span style="font-size:13px;font-weight:700;opacity:.9">${p ? (S.billing?.customer ? "Change plan, update your card or cancel below." : "Manage or cancel from your payment receipt email.") : "Get unlimited retouch and HD download with Glow."}</span></div>
+    <div class="col">
+      ${!p ? row("crown", "Get Glow or Pro", "Unlimited edits and HD download", 'data-act="seePlans" data-v="glow"') : ""}
+      ${p && !pro ? row("cube", "Upgrade to Pro", "Adds your 3D twin and all looks", 'data-act="seePlans" data-v="pro"') : ""}
+      ${p && S.billing?.customer ? row("settings", "Manage subscription", "Change plan, update card, cancel in 2 taps", 'data-act="manageSub"') : ""}
+      ${row("shield", "Privacy and my data", "Photos stay in this browser. Delete anytime", 'data-go="privacy"')}
+      ${row("mail", "Help", esc(CONFIG.SUPPORT_EMAIL), `href="mailto:${CONFIG.SUPPORT_EMAIL}"`, "a")}
+    </div>
+    <p class="small center">Face care and photo editing, not medical advice.</p></div>`;
+}
+
 R.account = {
-  needs: true, app: true,
+  needs: true, app: true, glowOk: true,
   view: () => {
+    if (S.flags.glow) return glowAccount();
     const p = S.paid ? planById(S.paid) : null;
     return `<div class="scr">
       <div class="top">${backBtn("progress")}<span class="pill chip">Settings</span><span class="spacer"></span></div>
@@ -1863,9 +1917,10 @@ R.privacy = {
     <div class="top">${backBtn()}<span class="pill chip">Privacy</span><span class="spacer"></span></div>
     <h1 class="h1 xl">Your face, <span class="hl">your rules</span></h1>
     <div class="card" style="background:var(--mint);color:var(--ink);font-size:13px;font-weight:700;line-height:1.5">
-      <span>✓ Face AI runs on this phone. Photos are never uploaded.</span>
-      <span>✓ Photos, scans and looks are stored only in this browser.</span>
-      <span>✓ We only receive your email and quiz answers (if you gave them), never photos.</span>
+      <span>✓ Face detection runs on this phone.</span>
+      <span>✓ A photo goes to Google's Gemini AI only when you tap Show me and agree. We don't store it.</span>
+      <span>✓ Photos, edits and looks are saved only in this browser.</span>
+      <span>✓ We only receive your email (if you gave it) and your plan choice.</span>
       <span>✓ Delete everything here anytime, in one tap.</span></div>
     <div class="col">
       <button class="row" data-act="exportData"><span><b>Download my data</b><small>Photos, scans and answers as a file</small></span><span class="r">↓</span></button>
@@ -1879,7 +1934,7 @@ R.deletedata = {
       <div style="width:96px;height:96px;border-radius:50%;background:#3A1620;display:flex;align-items:center;justify-content:center;font-size:40px">🗑️</div>
       <h1 class="h1 xl">Delete everything?</h1>
       <p class="sub">This removes your photos, twin, saved looks, scans and routine history from this phone. It can't be undone.</p>
-      <div class="row" style="background:var(--yel);color:var(--ink)"><span><b>Paid plan?</b><small>Deleting data doesn't cancel it. Cancel from your receipt email.</small></span><span class="r">!</span></div>
+      <div class="row" style="background:var(--yel);color:var(--ink)"><span><b>Paid plan?</b><small>Deleting data doesn't cancel it. Cancel in Account, or from your receipt email.</small></span><span class="r">!</span></div>
       ${S.email ? `<p class="small">To also remove your email from our list, write to ${CONFIG.SUPPORT_EMAIL}. We do it within 30 days.</p>` : ""}</div>
     <button class="cta inline" style="background:var(--danger)" data-act="wipe">Yes, delete my data</button>
     <button class="ghost" data-go="privacy">Keep my twin</button></div>`,
@@ -1888,6 +1943,7 @@ ACT.wipe = () => { track("DataDeleted"); localStorage.removeItem(KEY); S = load(
 
 // =============== BOOT ===============
 function boot() {
+  startIconPass(); // no emoji anywhere: glyphs become Hugeicons (iconpass.js)
   initPixel();
   // first-touch attribution for the lead form
   if (!S.utm.first_seen) {
@@ -1895,7 +1951,7 @@ function boot() {
     S.utm = { ...u, first_seen: dkey(), landing: location.pathname }; save();
   }
   // tester mode for your own testing: open the site with ?tester=1 (turn off with ?tester=0)
-  if (QS.get("tester") === "1") { S.flags.tester = 1; S.startedAt = S.startedAt || (S.photos.front && !S.flags.glow ? now().toISOString() : null); save(); setTimeout(() => toast("Tester mode on: everything unlocked"), 600); }
+  if (QS.get("tester") === "1" && (CONFIG.ALLOW_TESTER || LOCAL || DEBUG)) { S.flags.tester = 1; S.startedAt = S.startedAt || (S.photos.front && !S.flags.glow ? now().toISOString() : null); save(); setTimeout(() => toast("Tester mode on: everything unlocked"), 600); }
   if (QS.get("tester") === "0") { S.flags.tester = 0; save(); }
   // return from Stripe Checkout: /?cs=<session id>. The server confirms the payment before anything unlocks.
   const cs = QS.get("cs");
