@@ -14,6 +14,8 @@ The landing is now the editor: **upload a selfie → pick a retouch → see befo
 | **Consent before a photo leaves the device** (unticked box, remembered, logged as `AIConsent`) | `app.js` `askAIConsent`; text mirrored in `privacy.html`, `terms.html` |
 | **Hosted AI proxy** (replaces `server.py` on a public URL): prompt built on the server from the edit id, size and type checks, same-origin only, best-effort rate limit | `api/edit.js`, `api/status.js`, `vercel.json`, `package.json` |
 
+**Landing and funnel (Framer):** what is decided, what is built, what is left, and the prompts for the Framer agent are in [`docs/LANDING.md`](docs/LANDING.md).
+
 ### Deploy on Vercel (about 10 minutes)
 
 1. Import the repo in Vercel. No build step; framework preset "Other".
