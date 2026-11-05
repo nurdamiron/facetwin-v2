@@ -2,37 +2,47 @@
 
 ## V2 (Capstone): Glow, natural retouch in one tap
 
-The landing is now the editor: **upload a selfie → pick a retouch → see before/after → download in HD behind the paywall.** The 3D twin, hair/brow/beard looks and the exercise coach from V1 stay in the code as **Pro**.
+The landing is now the editor: **upload a selfie → pick a retouch → see before/after → download in HD behind the paywall.** The 3D twin, hair/brow/beard looks and the exercise coach from V1 are now two **one-time add-ons** sold right after checkout: **Looks** and **Coach**.
 
 | What | Where |
 |---|---|
-| **Glow**: 8 retouches (one-tap natural, acne & spots, under-eye bags, wrinkles, teeth whitening, freckles on / off, glow). Each is one instruction to Gemini with an identity-preserving prompt. | `previews.js` (group `Glow`, base text `BASE_RETOUCH`) |
+| **Glow**: 8 retouches (one-tap natural, acne & spots, under-eye bags, wrinkles, teeth whitening, freckles on / off, glow) and **Studio**: 4 background edits (white, grey studio, blur, passport / CV style). Each is one instruction to Gemini with an identity-preserving prompt. | `previews.js` (groups `Glow` and `Studio`, base texts `BASE_RETOUCH`, `BASE_STUDIO`) |
 | New landing (upload or demo face) and the fast path straight into Glow | `app.js` (`R.landing`, `useGlowPhoto`); the V1 3D flow is `R.meet3d` |
-| 2 free edits, then **Download in HD** is gated (`prevSave`), 3D twin is Pro (`prev3d`) | `config.js` `FREE_PREVIEWS`, `app.js` |
-| **V2 plans**: Glow $7.99 first month then $9.99 / $49.99 a year, Pro $15.99 then $19.99 / $99.99 a year. Renewal terms shown above the button, unticked consent box | `config.js` `PLANS_GLOW`, `app.js` `glowPaywall` |
+| 2 free edits, then **Download in HD** is gated (`prevSave`). 3D twin and hair/brow/beard looks need **Looks** (`hasLooks`) | `config.js` `FREE_PREVIEWS`, `app.js` |
+| **Plans (as in the pitch deck and Excel v5)**: Glow monthly $9.99 first month then $19.99; Glow quarterly $22.49 first quarter then $44.99. No annual plan. Renewal terms shown above the button, unticked consent box | `config.js` `PLANS_GLOW`, `app.js` `glowPaywall` |
+| **One-time add-ons right after checkout**: Looks $29.99 and Coach $24.99. If she says no, the same add-on is offered once more at $23.99 / $19.99. Both are real prices; no crossed-out price is ever shown. Coach builds her face report from the photo she already gave | `config.js` `UPSELLS`, `app.js` `R.up`, `nextOffer`, `api/checkout.js` (`kind: "upsell"`) |
 | **Consent before a photo leaves the device** (unticked box, remembered, logged as `AIConsent`) | `app.js` `askAIConsent`; text mirrored in `privacy.html`, `terms.html` |
 | **Hosted AI proxy** (replaces `server.py` on a public URL): prompt built on the server from the edit id, size and type checks, same-origin only, best-effort rate limit | `api/edit.js`, `api/status.js`, `vercel.json`, `package.json` |
 
 ### Deploy on Vercel (about 10 minutes)
 
 1. Import the repo in Vercel. No build step; framework preset "Other".
-2. Project → Settings → Environment Variables: `GEMINI_API_KEY` (Google AI Studio key **with billing**, image models have no free API tier). Optional: `RATE_LIMIT_PER_HOUR` (default 20), `DAILY_CAP` (default 500), `GEMINI_IMAGE_MODEL`.
+2. Project → Settings → Environment Variables: `GEMINI_API_KEY` (Google AI Studio key **with billing**, image models have no free API tier). Optional: `AI_EDITS_PER_HOUR` (default 20; the old name `RATE_LIMIT_PER_HOUR` also works), `DAILY_CAP` (default 500), `GEMINI_IMAGE_MODEL`.
 3. Deploy. Open the URL, upload a selfie, tap Show me. Test in an incognito window.
-4. In `config.js` fill `LEAD_ENDPOINT` (Formspree) and `META_PIXEL_ID`; set `PAYMENT_LINKS` (`glow_m`, `glow_y`, `pro_m`, `pro_y`) with your checkout links and their success URL to `https://YOUR-SITE/?paid=glow_y#/preview` (use the plan id). While a link is empty the paywall shows the honest "payments open soon" screen.
+4. In `config.js` fill `LEAD_ENDPOINT` (Formspree) and `META_PIXEL_ID`. Payments go through Stripe, see section 3a. `PAYMENT_LINKS` is only a fallback for the two Glow plans; while nothing is set up the paywall shows the honest "payments open soon" screen.
 5. For a demo without paying: `?tester=1` unlocks everything, but only on localhost or with `?debug=1`. On the public site it stays off unless you set `ALLOW_TESTER: true` in `config.js` (then anyone who knows the URL can use it). The better demo is a real test-mode payment, see 3a.
 
-Local test with no keys and no Python: `STRIPE_MOCK=1 AI_MOCK=1 node scripts/dev-server.mjs`, then open http://localhost:8080. It serves the app and the `/api/*` functions; `AI_MOCK` returns your photo unchanged, `STRIPE_MOCK` fakes the checkout. Both are ignored on Vercel. With real keys, set `GEMINI_API_KEY` / `STRIPE_*` instead of the mocks.
+Local test with no keys and no Python: `STRIPE_MOCK=1 AI_MOCK=1 node scripts/dev-server.mjs`, then open http://localhost:8080. It serves the app and the `/api/*` functions; `AI_MOCK` returns your photo unchanged, `STRIPE_MOCK` fakes the checkout. `AI_MOCK` is ignored on Vercel; `STRIPE_MOCK` is ignored on the production deployment (`VERCEL_ENV=production`) but works on preview deployments, so a preview URL can run the whole payment flow with no Stripe account. With real keys, set `GEMINI_API_KEY` / `STRIPE_*` instead of the mocks.
 
 **Design:** no emoji anywhere. Icons are [Hugeicons](https://hugeicons.com) Free (MIT), inlined by `icons.js` (generated by `scripts/build-icons.mjs`; add an icon there and re-run). `iconpass.js` turns any stray emoji or glyph into an icon, so a new emoji in a string can never reach the screen.
 
 ### Known limits (not done yet)
 
 - Access is decided in the browser (`S.paid` after `/api/verify`). A determined user can edit local storage and unlock the UI; real access control needs a backend and Stripe webhooks. `?tester=1` and `?paid=` are off on the public site unless allowed in `config.js`.
-- Glow plans unlock unlimited retouch and HD download; **Pro** (any `pro_*` plan) also unlocks the 3D twin and the hair, brows and beard looks. Free: 2 edits, no download.
+- A Glow plan unlocks unlimited retouch, Studio and HD download. **Looks** (one-time) unlocks the 3D twin and the hair, braids, brows, beard and "your idea" looks. **Coach** (one-time) opens the 12-week plan, the camera coach and the weekly re-scan. Free: 2 edits, no download. An add-on is bought with the same browser, so entitlements live in `S.owned` and are confirmed by `/api/verify` (no webhooks yet).
 - The rate limit in `api/edit.js` is per server instance. For a hard cap use Upstash or Vercel KV and a Google spend limit.
-- `models/depth_anything_v2_vits.onnx` is ~99 MB: check your host's file limits (only the Pro 3D twin needs it).
+- `models/depth_anything_v2_vits.onnx` is ~99 MB: check your host's file limits (only the Looks 3D twin and the Coach report need it).
 - `privacy.html` and `terms.html` still have `[brackets]` (legal name, address, refund policy) and need a lawyer's review before paid ads.
-- The example image on the landing is the V1 demo head; replace `assets/demo/front.jpg` usage with your own before/after pair.
+- The landing and the "demo face" button use a synthetic face (`assets/demo/glow.jpg`, SFHQ dataset, MIT licence). It is the *before* only: add a real before/after pair from your first real Gemini run.
+- The Gemini image quality (identity kept, no plastic skin, teeth / freckles no-ops) has not been checked with a real key yet. Run `PROMPTS.md` in AI Studio first; `node scripts/gen-prompts.mjs` regenerates it from `previews.js`.
+
+### Tests
+
+```bash
+node --test "tests/unit/*.test.mjs"   # 28 tests: prompts, prices, /api/edit, /api/checkout, /api/verify, token signing. No network, no keys.
+```
+
+They fail if the prices drift from the deck, if PROMPTS.md is out of date, if a client-sent prompt reaches the model, if a forged token reuses a Stripe customer, or if a mock session could unlock anything in production.
 
 ---
 
@@ -112,11 +122,15 @@ Alternatives: Vercel or Cloudflare Pages (also free). The folder is plain HTML, 
 
 The paywall opens **Stripe Checkout** through `/api/checkout`. After payment Stripe sends her back to `/?cs=<session>#/welcome`, the app asks `/api/verify` whether Stripe really took the money, and only then unlocks the plan. A typed URL can't unlock anything (`?paid=` is off unless `ALLOW_PAID_PARAM: true` or `?debug=1`).
 
-| Tier | Plans | Unlocks |
+| What | Price | Unlocks |
 |---|---|---|
-| Free | — | Studio preview, free download is 720 px with a "facetwin.app" mark, 3 drawn looks, 1 AI look |
-| Glow | `glow_m` $7.99 first month → $9.99, `glow_y` $49.99 | Unlimited retouch, HD download |
-| Pro | `pro_m` $15.99 first month → $19.99, `pro_y` $99.99 | Glow + all looks, 30 AI looks/retakes a month, face plan, coach |
+| Free | — | 2 edits with before/after (retouch or Studio), no download |
+| Glow monthly (`glow_m`) | $9.99 first month → $19.99 a month | Unlimited retouch and Studio, HD download |
+| Glow quarterly (`glow_q`) | $22.49 first quarter → $44.99 every 3 months ($15.00 a month) | Same as monthly |
+| Looks (one-time) | $29.99, second chance $23.99 | 3D twin; hair, braids, brows, beard and "your idea" looks |
+| Coach (one-time) | $24.99, second chance $19.99 | Face report, 12-week plan, live camera coach, weekly re-scan |
+
+The first-period price is a fixed-amount Stripe coupon (`duration: once`): $10.00 off the monthly price and $22.50 off the quarterly price. Looks and Coach are Stripe Checkout in `payment` mode, offered by `R.up` right after the subscription checkout and again from Settings → Add Looks / Add Coach.
 
 **Set it up (about 5 minutes with the script, or 15 by hand, Stripe test mode, no company needed):**
 
@@ -126,26 +140,27 @@ The paywall opens **Stripe Checkout** through `/api/checkout`. After payment Str
 STRIPE_SECRET_KEY=sk_test_... node scripts/stripe-setup.js https://your-site.vercel.app
 ```
 
-It creates the 2 products, 4 prices, the 20% first-month coupon and the customer-portal configuration (safe to run again), then prints the env vars for step 5, including `STRIPE_PORTAL_CONFIG`. Only the renewal-reminder emails in step 4 still need one click in the Dashboard.
+It creates the 3 products, 6 prices, the 2 first-period coupons and the customer-portal configuration (safe to run again), reading every amount from `config.js`, then prints the env vars for step 5, including `STRIPE_PORTAL_CONFIG`. Only the renewal-reminder emails in step 4 still need one click in the Dashboard.
 
 **By hand:**
 1. dashboard.stripe.com → switch on **Test mode**.
-2. Product catalog → create 2 products, **FaceTwin Glow** and **FaceTwin Pro**, with 4 recurring prices: $9.99/month, $49.99/year, $19.99/month, $99.99/year. Copy the 4 `price_...` ids.
-3. Product catalog → Coupons → **20% off, duration: Once**. Copy its id. It is applied to monthly plans only, so the first month is $7.99 / $15.99.
+2. Product catalog → create 3 products: **FaceTwin Glow** with 2 recurring prices ($19.99 every month, $44.99 every 3 months), **FaceTwin Looks** with 2 one-time prices ($29.99, $23.99) and **FaceTwin Coach** with 2 one-time prices ($24.99, $19.99). Copy the 6 `price_...` ids.
+3. Product catalog → Coupons → two coupons, **$10.00 off, duration: Once** (first month → $9.99) and **$22.50 off, duration: Once** (first quarter → $22.49). Copy both ids.
 4. Settings → Billing → **Customer portal**: turn it on (cancel, update card, switch plan). Settings → Billing → **Subscriptions and emails**: turn on emails about upcoming renewals (the "3 days before" reminder promised on the paywall).
 5. Vercel → Settings → Environment Variables:
 
 | Variable | Value |
 |---|---|
 | `STRIPE_SECRET_KEY` | `sk_test_...` (Developers → API keys). Never put it in `config.js` or the repo |
-| `STRIPE_PRICE_GLOW_M`, `STRIPE_PRICE_GLOW_Y`, `STRIPE_PRICE_PRO_M`, `STRIPE_PRICE_PRO_Y` | the 4 `price_...` ids |
-| `STRIPE_COUPON_FIRST_MONTH` | the coupon id (optional) |
+| `STRIPE_PRICE_GLOW_M`, `STRIPE_PRICE_GLOW_Q` | the 2 Glow `price_...` ids (the paywall works with these alone) |
+| `STRIPE_PRICE_LOOKS`, `STRIPE_PRICE_LOOKS_SKIP`, `STRIPE_PRICE_COACH`, `STRIPE_PRICE_COACH_SKIP` | the 4 one-time `price_...` ids (without them the add-on screens are skipped and `/api/status` says `"upsells": false`) |
+| `STRIPE_COUPON_FIRST_MONTH`, `STRIPE_COUPON_FIRST_QUARTER` | the 2 coupon ids (optional; without them the first period is charged at the full price) |
 | `PUBLIC_URL` | optional, e.g. `https://facetwin.vercel.app` (otherwise taken from the request) |
 | `AI_EDITS_PER_HOUR` | optional, per-IP limit on `/api/edit`, default 20 |
 
 6. Redeploy. `/api/status` should say `"payments": true`. Pay with test card **4242 4242 4242 4242**, any future date, any CVC.
 
-**Test without a Stripe account:** set `STRIPE_MOCK=1` (e.g. `vercel dev`). `/api/checkout` then returns a fake session and `/api/verify` confirms it, so the whole return flow can be tried with no Stripe account. Never set it in production.
+**Test without a Stripe account:** set `STRIPE_MOCK=1` (`node scripts/dev-server.mjs`, `vercel dev` or a Vercel *preview* deployment). `/api/checkout` then returns a fake session and `/api/verify` confirms it, so the whole flow, add-ons included, can be tried with no Stripe account. The mock is switched off by code on the production deployment, so it can't be left on by mistake.
 
 If `/api/checkout` isn't configured, the paywall falls back to `PAYMENT_LINKS`, then to the "payments open soon" screen.
 
@@ -182,6 +197,9 @@ If `/api/checkout` isn't configured, the paywall falls back to `PAYMENT_LINKS`, 
 | `RenewalConsent` (custom) | Ticks the renewal box | Paywall friction |
 | `AiConsent` (custom) | Agrees to the cloud AI edit | |
 | `Purchase`, `Subscribe` | Back from Stripe, confirmed by `/api/verify` (`eventID` = checkout session, for CAPI dedup) | Real revenue |
+| `AddOnView_looks`, `AddOnView_coach` (custom) | The add-on screen was opened | Upsell reach |
+| `AddOnDeclined` (custom, `item`, `second_chance`) | She said no to Looks / Coach | Where the offer loses people |
+| `AddOnPurchased` (custom, `item`, `value`, `second_chance`) and `Purchase` (`content_name` = `addon_looks` / `addon_coach`) | Back from Stripe for an add-on | Upsell take rate (deck assumes 30% Looks, 25% Coach) |
 
 `Screen` (custom, with `screen` name) fires on every screen, so you can build any funnel in Events Manager → Custom conversions.
 
