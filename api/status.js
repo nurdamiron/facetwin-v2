@@ -1,4 +1,4 @@
-// Tells the page what is available (the page calls api/status on load): the AI editor and Stripe payments.
+// Tells the page what is available (the page calls api/status on load): the AI editor, Stripe payments and the add-ons.
 import * as S from "./_stripe.js";
 
 export default function handler(req, res) {
@@ -8,6 +8,7 @@ export default function handler(req, res) {
     mock: process.env.AI_MOCK === "1" && !process.env.VERCEL,
     model: process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
     payments: S.configured(),
-    paymentsMock: S.MOCK,
+    upsells: S.configured() && S.upsellsConfigured(),
+    paymentsMock: S.mockOn(),
   });
 }

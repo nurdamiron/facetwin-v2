@@ -10,7 +10,7 @@ import { promptFor, previewById, cleanIdea } from "../previews.js";
 
 const MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
 const MAX_B64 = 8_000_000; // about 6 MB of image
-const PER_IP_PER_HOUR = Number(process.env.RATE_LIMIT_PER_HOUR || 20);
+const PER_IP_PER_HOUR = Number(process.env.AI_EDITS_PER_HOUR || process.env.RATE_LIMIT_PER_HOUR || 20); // AI_EDITS_PER_HOUR is the documented name
 const DAILY_CAP = Number(process.env.DAILY_CAP || 500);
 const MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const hits = new Map(); // ip -> [timestamps]

@@ -1,19 +1,30 @@
 // Shared Stripe helpers for the Vercel functions. No npm packages: plain fetch to the Stripe REST API.
 // Keys live only in Vercel's Environment Variables, never in the code or the browser:
 //   STRIPE_SECRET_KEY            sk_test_... (test mode for the capstone) or sk_live_...
-//   STRIPE_PRICE_GLOW_M / _GLOW_Y / _PRO_M / _PRO_Y   price_... ids of the 4 recurring prices
-//   STRIPE_COUPON_FIRST_MONTH    optional coupon id: 20% off, duration "once", applied to monthly plans
-//   STRIPE_MOCK=1                fake checkout for local tests (no Stripe account needed)
+//   STRIPE_PRICE_GLOW_M / _GLOW_Q           price_... ids of the 2 recurring Glow prices (monthly, every 3 months)
+//   STRIPE_PRICE_LOOKS / _LOOKS_SKIP        one-time add-on "Looks": full price and the second-chance price
+//   STRIPE_PRICE_COACH / _COACH_SKIP        one-time add-on "Coach": full price and the second-chance price
+//   STRIPE_COUPON_FIRST_MONTH / _QUARTER    optional coupon ids: a fixed amount off the first period only (duration "once")
+//   STRIPE_MOCK=1                           fake checkout for local tests and preview deployments (never honoured in production)
 import crypto from "node:crypto";
 
-export const MOCK = process.env.STRIPE_MOCK === "1";
+// The mock grants access without paying, so it must never run on the production deployment.
+export const mockOn = () => process.env.STRIPE_MOCK === "1" && process.env.VERCEL_ENV !== "production";
 export const secret = () => (process.env.STRIPE_SECRET_KEY || "").trim();
-const PRICE_ENV = { glow_m: "STRIPE_PRICE_GLOW_M", glow_y: "STRIPE_PRICE_GLOW_Y", pro_m: "STRIPE_PRICE_PRO_M", pro_y: "STRIPE_PRICE_PRO_Y" };
+const PRICE_ENV = { glow_m: "STRIPE_PRICE_GLOW_M", glow_q: "STRIPE_PRICE_GLOW_Q" };
+const COUPON_ENV = { glow_m: "STRIPE_COUPON_FIRST_MONTH", glow_q: "STRIPE_COUPON_FIRST_QUARTER" };
+const UPSELL_ENV = {
+  looks: "STRIPE_PRICE_LOOKS", looks_skip: "STRIPE_PRICE_LOOKS_SKIP",
+  coach: "STRIPE_PRICE_COACH", coach_skip: "STRIPE_PRICE_COACH_SKIP",
+};
 export const PLAN_IDS = Object.keys(PRICE_ENV);
+export const UPSELL_IDS = ["looks", "coach"];
 export const priceFor = (plan) => (process.env[PRICE_ENV[plan]] || "").trim();
-export const isMonthly = (plan) => plan.endsWith("_m");
-export const tierOf = (plan) => (String(plan).startsWith("pro") ? "pro" : String(plan).startsWith("glow") ? "glow" : null);
-export const configured = () => MOCK || (!!secret() && PLAN_IDS.every((p) => priceFor(p)));
+export const couponFor = (plan) => (process.env[COUPON_ENV[plan]] || "").trim();
+export const upsellPrice = (item, skip) => (process.env[UPSELL_ENV[skip ? item + "_skip" : item]] || "").trim();
+export const tierOf = (plan) => (String(plan).startsWith("glow") ? "glow" : null);
+export const configured = () => mockOn() || (!!secret() && PLAN_IDS.every((p) => priceFor(p)));
+export const upsellsConfigured = () => mockOn() || (!!secret() && Object.values(UPSELL_ENV).every((k) => (process.env[k] || "").trim()));
 
 // Stripe wants form encoding with bracket keys: line_items[0][price]=...
 function form(obj, prefix = "", out = []) {

@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   const customer = String(b.customer || "");
   if (!/^cus_[A-Za-z0-9]+$/.test(customer) || !S.checkSign(customer, b.token)) return res.status(403).json({ error: "Not allowed" });
   const origin = S.originOf(req);
-  if (S.MOCK && customer === "cus_mock") return res.status(200).json({ url: `${origin}/#/account`, mock: true });
+  if (S.mockOn() && customer === "cus_mock") return res.status(200).json({ url: `${origin}/#/account`, mock: true });
   if (!S.configured()) return res.status(503).json({ error: "Payments are not set up yet." });
   try {
     // STRIPE_PORTAL_CONFIG comes from scripts/stripe-setup.js; without it Stripe uses the Dashboard's default portal

@@ -6,7 +6,7 @@ import * as D from "./depth3d.js";
 import { SHELF, TIERS } from "./shelf.js";
 import { mountTwin3D, mountRelief, webglOK } from "./twin3d.js";
 import { buildHead, mountHead } from "./head3d.js";
-import { PREVIEWS, GROUPS, previewById, promptFor, cleanIdea } from "./previews.js";
+import { PREVIEWS, GROUPS, GLOW_GROUPS, previewById, promptFor, cleanIdea } from "./previews.js";
 import { EXERCISES, exById, workoutFor, RepCounter } from "./exercises.js";
 import { ico } from "./icons.js";
 import { startIconPass } from "./iconpass.js";
@@ -33,6 +33,7 @@ const DEFAULT = {
   wants: [], previews: [], previewsUsed: 0,
   exLog: [], exSound: true,
   aiOk: false, aiOkAt: null, // consent to send a photo to the AI editor (asked before the first edit)
+  owned: {}, // one-time add-ons she bought: { looks: 1, coach: 1 } (confirmed by /api/verify)
 };
 let S = load();
 function load() {
@@ -61,7 +62,9 @@ const freeDay = () => (S.freeStart ? daysBetween(new Date(S.freeStart), now()) +
 const LOCAL = /^(localhost|127.0.0.1|[::1])$/.test(location.hostname);
 const testerOn = () => !!S.flags.tester && (CONFIG.ALLOW_TESTER || LOCAL || DEBUG); // team test switch: off on the public site unless allowed in config.js
 const isPaid = () => !!S.paid || testerOn(); // tester mode = everything unlocked
-const isPro = () => testerOn() || (!!S.paid && !String(S.paid).startsWith("glow")); // Glow plans do not include Pro (3D twin, all looks)
+// A Glow plan covers retouch + Studio. Looks (3D twin, hair/brows/beard looks) and Coach (plan, camera coach, re-scan) are one-time add-ons.
+const owns = (item) => testerOn() || !!(S.owned && S.owned[item]);
+const hasLooks = () => owns("looks");
 const freeOver = () => !isPaid() && S.freeStart && freeDay() > CONFIG.FREE_DAYS;
 const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -234,7 +237,7 @@ R.landing = {
     </div>
     <label class="cta inline" style="cursor:pointer;text-align:center">${ico("camera", 24)} Upload a selfie<input type="file" accept="image/*" hidden id="glowUpl"></label>
     <button class="ghost" data-act="glowDemo">${ico("sparkles", 20)} Try it with a demo face</button>
-    <div class="photo hero-photo"><img src="assets/demo/front.jpg" alt="Demo face"><span class="tl"><span class="pill dark">${ico("sparkles", 14)} Demo face</span></span></div>
+    <div class="photo hero-photo"><img src="assets/demo/glow.jpg" alt="Demo face"><span class="tl"><span class="pill dark">${ico("sparkles", 14)} Demo face</span></span></div>
     <div class="feat">${GLOW_FEATURES.map(([ic, name], i) => `<div class="feat-i"><span class="tbub sm" style="--tc:${TINT[i % TINT.length]}">${ico(ic, 24)}</span><span>${name}</span></div>`).join("")}</div>
     <div class="how">${HOW.map(([ic, t, s], i) => `<div class="how-i"><span class="how-n">${ico(ic, 22)}</span><span><b>${t}</b><small>${s}</small></span></div>`).join("")}</div>
     <div class="trust">${ico("shield", 22)}<p class="small">Your photo goes to an AI editor only when you tap Show me, and only with your OK. We don't store it. Face care, not medical advice.</p></div>
@@ -259,7 +262,7 @@ async function useGlowPhoto(url, source) {
   trackOnce("FunnelStart"); trackOnce("SelfiesDone", { source, photos: 1 }); go("preview");
 }
 ACT.glowDemo = async () => {
-  try { toast("Loading the demo face…"); const b = await (await fetch("assets/demo/front.jpg")).blob(); track("DemoFace"); await useGlowPhoto(await fileToDataURL(b, 1024), "demo"); }
+  try { toast("Loading the demo face…"); const b = await (await fetch("assets/demo/glow.jpg")).blob(); track("DemoFace"); await useGlowPhoto(await fileToDataURL(b, 1024), "demo"); }
   catch (e) { console.error(e); toast("The demo face didn't load"); }
 };
 
@@ -335,7 +338,8 @@ R.skin = {
 };
 ACT.concern = (v) => { S.concerns = S.concerns.includes(v) ? S.concerns.filter((x) => x !== v) : [...S.concerns, v]; save(); render(); };
 ACT.minutes = (v) => { S.minutes = +v; save(); render(); };
-ACT.skinNext = () => { trackOnce("QuizComplete", { goal: S.goal, concerns: S.concerns.length, minutes: S.minutes }); go("permission"); };
+// She already gave a photo in the Glow editor: build the report from it instead of asking for selfies again.
+ACT.skinNext = () => { trackOnce("QuizComplete", { goal: S.goal, concerns: S.concerns.length, minutes: S.minutes }); go(S.photos.front ? "building" : "permission"); };
 
 R.permission = {
   view: () => `<div class="scr">${topbar("skin", 5)}
@@ -529,7 +533,7 @@ async function runBuild() {
   save();
   setBuild(100, 2, "done");
   await sleep(450);
-  go("twin");
+  go(S.startedAt ? homeFor() : "twin"); // a Coach buyer goes straight into her app
 }
 function defaultLooks() {
   const out = [], cats = new Set();
@@ -787,7 +791,8 @@ R.twin = {
 async function checkAI() {
   try {
     const r = await fetch("api/status", { cache: "no-store" });
-    ui.ai = r.ok ? { ok: !!(await r.json()).ai, server: true } : { ok: false, server: false };
+    if (r.ok) { const j = await r.json(); ui.ai = { ok: !!j.ai, server: true, payments: !!j.payments, upsells: !!j.upsells }; }
+    else ui.ai = { ok: false, server: false };
   } catch { ui.ai = { ok: false, server: false }; }
   return ui.ai;
 }
@@ -830,14 +835,14 @@ R.preview = {
             ${ui.busy ? `<div style="position:absolute;inset:0;background:rgba(14,14,20,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px"><div class="spin"></div><b id="busyMsg">Creating your look…</b><span class="small">Usually 5–15 seconds</span></div>` : ""}</div>`}
       ${shown && !ui.prev3d ? `<p class="small center">Drag the line to compare · AI preview, a simulation of the change</p>` : ""}
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
-      <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${S.flags.glow && g !== "Glow" && !isPro() ? ico("lock", 13) + " " : ""}${g}</button>`).join("")}</div>
+      <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${S.flags.glow && !GLOW_GROUPS.includes(g) && !hasLooks() ? ico("lock", 13) + " " : ""}${g}</button>`).join("")}</div>
       ${group === "Your idea" ? `<div class="card" style="gap:8px"><b>Describe any change to your face or hair</b>
           <textarea id="ctext" rows="2" maxlength="200" placeholder="e.g. a short curly fade and a thin mustache" style="width:100%;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--text);padding:12px;font:inherit;font-weight:700;resize:none">${esc(ui.ctext || "")}</textarea>
           <small class="small">Keep it to your face and hair. The AI keeps everything else the same.</small></div>`
         : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
       ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add your Gemini API key (README → Realistic previews), then restart." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
           ${S.startedAt ? `<button class="link" style="text-align:left;color:var(--ink);text-decoration:underline" data-go="studio">Use the instant drawn try-on meanwhile</button>` : ""}</div>` : ""}
-      ${shown ? `<div class="grid2"><button class="ghost" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 20)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !isPro() && !ui.prev3d ? ` <span class="pro-tag">Pro</span>` : ""}</button><button class="ghost" data-act="stackOn">${ico("plus", 20)} Add a change</button></div>
+      ${shown ? `<div class="grid2"><button class="ghost" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 20)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` <span class="pro-tag">Looks</span>` : ""}</button><button class="ghost" data-act="stackOn">${ico("plus", 20)} Add a change</button></div>
           <div class="grid2"><button class="ghost" data-act="prevAgain">${ico("refresh", 20)} Try again</button><button class="ghost" data-act="prevSave">${ico(S.flags.glow && !isPaid() ? "lock" : "download", 20)} ${S.flags.glow ? "Download HD" : "Save photo"}</button></div>`
         : `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>`}
       ${!S.startedAt && S.previews.length ? (S.flags.glow ? (isPaid() ? `<button class="cta" data-act="prevSave">${ico("download", 22)} Download in HD</button>` : `<button class="cta" data-go="paywall">${ico("lock", 22)} Download in HD</button>`) : `<button class="cta" data-act="twinNext">Save my looks + start</button>`) : ""}
@@ -868,7 +873,7 @@ R.preview = {
   },
 };
 ACT.prev3d = () => {
-  if (S.flags.glow && !isPro() && !ui.prev3d) return upsell("The 3D twin is part of Pro", "pro");
+  if (S.flags.glow && !hasLooks() && !ui.prev3d) return upsell("The 3D twin is part of Looks", "looks");
   ui.prev3d = !ui.prev3d; render();
 };
 ACT.prevGroup = (g) => {
@@ -893,7 +898,7 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
   const left = previewsLeft();
   if (!left) return upsell("You've used your free look");
   const p = previewById(id); if (!p) return;
-  if (S.flags.glow && !isPro() && p.group !== "Glow") return upsell("Hair, brows and beard looks are part of Pro", "pro");
+  if (S.flags.glow && !hasLooks() && !GLOW_GROUPS.includes(p.group)) return upsell("Hair, brows and beard looks are part of Looks", "looks");
   if (!S.aiOk) return askAIConsent(() => ACT.prevGen(id, _el, _e, redo)); // the photo leaves the device: ask first
   let text = "";
   if (id === "custom") {
@@ -960,22 +965,23 @@ ACT.aiAgree = () => {
   $$(".sheet-bg").forEach((n) => n.remove());
   const f = ui.afterConsent; ui.afterConsent = null; if (f) f();
 };
+const upsellOf = (id) => (CONFIG.UPSELLS || []).find((u) => u.id === id);
 function upsell(title, want = "glow") {
   track("UpsellShown", { reason: title, want });
-  const pro = want === "pro";
-  sheet(`<span class="tbub" style="--tc:var(--lilac)">${ico(pro ? "crown" : "lock", 30)}</span>
+  const add = upsellOf(want), buyable = add && S.paid; // an add-on is sold to people who already have a Glow plan
+  const text = !S.flags.glow ? "Unlimited realistic previews, your full face report and 12-week plan with products, and weekly before/after."
+    : add ? (buyable ? `${add.name}: ${add.title.toLowerCase()}. One-time $${add.price.toFixed(2)}, no subscription.` : `${add.name} is a one-time add-on to Glow: ${add.title.toLowerCase()}. Start with a Glow plan.`)
+    : "Glow: unlimited natural retouch and Studio, saved in HD. Looks and Coach are optional one-time add-ons.";
+  sheet(`<span class="tbub" style="--tc:var(--lilac)">${ico(add ? add.icon : "lock", 30)}</span>
     <h2 class="h1" style="font-size:26px">${esc(title)}</h2>
-    <p class="sub">${S.flags.glow ? (pro ? "Pro: everything in Glow, plus your 3D twin and the hair, brows and beard looks." : "Glow: unlimited natural retouch, saved in HD. Pro adds your 3D twin and all looks.") : "Unlimited realistic previews, your full face report and 12-week plan with products, and weekly before/after."}</p>
-    <button class="cta inline" data-act="seePlans" data-v="${want}">See plans</button><button class="link" data-close>Not now</button>`);
+    <p class="sub">${esc(text)}</p>
+    <button class="cta inline" data-act="seePlans" data-v="${want}">${buyable ? `See ${add.name}` : "See plans"}</button><button class="link" data-close>Not now</button>`);
 }
 ACT.seePlans = (want) => {
-  if (S.flags.glow) {
-    const tier = (id) => (CONFIG.PLANS_GLOW.find((q) => q.id === id) || {}).tier;
-    if (want === "pro" && tier(S.chosen) !== "Pro") S.chosen = "pro_y";
-    if (want !== "pro" && !tier(S.chosen)) S.chosen = "glow_y";
-    save();
-  }
-  go("paywall");
+  S.flags.upFlow = 0; // opened on her own, not from the post-checkout sequence
+  if (upsellOf(want) && S.paid) { save(); return go("up/" + want); }
+  if (S.flags.glow && !CONFIG.PLANS_GLOW.some((q) => q.id === S.chosen)) S.chosen = "glow_q";
+  save(); go("paywall");
 };
 ACT.saveLook = async () => {
   if (!S.applied.length) return toast("Turn on a look first");
@@ -1026,13 +1032,15 @@ const planById = (id) => [...CONFIG.PLANS_GLOW, ...CONFIG.PLANS].find((p) => p.i
 // Honest renewal line shown above the pay button: today's price, the recurring price, the reminder.
 const renewText = (pl) => pl.period === "month"
   ? `Today $${pl.price.toFixed(2)}. From day 31: $${pl.then.toFixed(2)} a month until you cancel. We remind you 3 days before.`
+  : pl.period === "quarter"
+  ? `Today $${pl.price.toFixed(2)}. From month 4: $${pl.then.toFixed(2)} every 3 months until you cancel. We remind you 3 days before.`
   : `Today $${pl.price.toFixed(2)}. Renews at $${pl.then.toFixed(2)} a year until you cancel. We remind you 3 days before.`;
 function glowPaywall() {
-  if (!CONFIG.PLANS_GLOW.some((p) => p.id === S.chosen)) { S.chosen = "glow_y"; save(); }
+  if (!CONFIG.PLANS_GLOW.some((p) => p.id === S.chosen)) { S.chosen = "glow_q"; save(); }
   const last = S.previews[0], p = planById(S.chosen);
   const perks = [
-    ["Glow", "var(--pink)", [["onetap", "Unlimited natural retouch"], ["download", "HD download, no watermark"]]],
-    ["Pro", "var(--lilac)", [["cube", "Your 3D twin"], ["scissors", "Hair, brows and beard looks"]]],
+    ["Glow", "var(--pink)", [["onetap", "Unlimited natural retouch"], ["image", "Studio backgrounds"], ["download", "HD download, no watermark"]]],
+    ["Add-ons", "var(--lilac)", CONFIG.UPSELLS.map((u) => [u.icon, `${u.name}: $${u.price.toFixed(2)} once, after checkout`])],
   ];
   const plan = (q) => `<button class="plan ${S.chosen === q.id ? "on" : ""}" data-act="choose" data-v="${q.id}">${q.popular ? `<span class="badge">Best value</span>` : ""}<span><b>${q.name}</b><small>${q.note}</small></span><span class="price">$${q.price.toFixed(2)}</span></button>`;
   return `<div class="scr" style="gap:12px">
@@ -1040,7 +1048,7 @@ function glowPaywall() {
     ${last ? `<div class="photo" style="height:170px;border-radius:24px"><img src="${last.img}" alt="Your edit"><span class="tl"><span class="pill dark">${ico(entryIcon(last), 16)} ${esc(entryName(last))}</span></span></div>` : ""}
     <h1 class="h1" style="font-size:30px">Download in HD. <span class="hl">Keep editing.</span></h1>
     <div class="grid2">${perks.map(([tier, bg, items]) => `<div class="card perk"><span class="pill" style="background:${bg};color:var(--ink);align-self:flex-start">${tier}</span>${items.map(([ic, t]) => `<div class="perk-i">${ico(ic, 20)}<span>${t}</span></div>`).join("")}</div>`).join("")}</div>
-    <div class="col"><span class="small tiers">Glow</span>${CONFIG.PLANS_GLOW.filter((q) => q.tier === "Glow").map(plan).join("")}<span class="small tiers">Pro</span>${CONFIG.PLANS_GLOW.filter((q) => q.tier === "Pro").map(plan).join("")}</div>
+    <div class="col"><span class="small tiers">Glow</span>${CONFIG.PLANS_GLOW.map(plan).join("")}</div>
     <p class="small center" id="renewLine" style="font-size:12px;font-weight:800">${renewText(p)}</p>
     <label class="row" style="cursor:pointer"><input type="checkbox" id="renewOk" style="width:22px;height:22px;flex:none"><span><b>I agree to the renewal terms above</b><small>Cancel anytime in Settings, in 2 taps.</small></span></label>
     <button class="cta" data-act="checkout">${ico("lock", 22)} Continue to secure checkout</button>
@@ -1079,7 +1087,7 @@ ACT.choose = (v) => {
   S.chosen = v; save(); $$(".plan").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   const line = $("#renewLine"); if (line) line.textContent = renewText(planById(v));
 };
-const STRIPE_PLANS = ["glow_m", "glow_y", "pro_m", "pro_y"]; // the plans that exist as Stripe prices
+const STRIPE_PLANS = ["glow_m", "glow_q"]; // the plans that exist as Stripe prices
 ACT.checkout = async (_v, el) => {
   if (S.flags.glow && !$("#renewOk")?.checked) return toast("Please tick the box to confirm the renewal terms");
   const p = planById(S.chosen);
@@ -1112,32 +1120,106 @@ ACT.checkout = async (_v, el) => {
 // Back from Stripe: /?cs=<session id>. Ask our server whether Stripe really took the money, then unlock.
 async function confirmCheckout(cs) {
   history.replaceState(null, "", location.pathname + (DEBUG ? "?debug=1" : "") + "#/welcome");
-  let glowPlan = false;
+  let next = "preview";
   try {
     const r = await fetch(`api/verify?cs=${encodeURIComponent(cs)}`, { cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.paid) throw new Error(j.error || "We couldn't confirm the payment yet.");
-    const p = planById(j.plan), first = S.paid !== j.plan;
-    glowPlan = CONFIG.PLANS_GLOW.some((q) => q.id === j.plan);
-    if (glowPlan) S.flags.glow = 1;
-    S.paid = j.plan; S.billing = { customer: j.customer, token: j.token, cs };
+    S.billing = { customer: j.customer, token: j.token, cs };
     if (j.email && !S.email) S.email = j.email;
-    if (!glowPlan) S.startedAt = S.startedAt || now().toISOString();
-    save();
-    if (first) {
-      const value = typeof j.value === "number" ? j.value : p.price;
-      // eventID = checkout session, so a later server-side (CAPI) Purchase is deduplicated with this one
-      if (window.fbq) window.fbq("track", "Purchase", { value, currency: j.currency || CONFIG.CURRENCY, content_name: p.id }, { eventID: cs });
-      console.info("[track]", "Purchase", { value, plan: p.id, cs });
-      track("Subscribe", { value, currency: j.currency || CONFIG.CURRENCY });
+    const cur = j.currency || CONFIG.CURRENCY;
+    if (j.kind === "upsell") {
+      // a one-time add-on: Looks or Coach
+      const u = upsellOf(j.item); if (!u) throw new Error("Unknown add-on.");
+      const first = !S.owned[j.item], value = typeof j.value === "number" ? j.value : (j.skip ? u.skipPrice : u.price);
+      S.owned = { ...S.owned, [j.item]: 1 }; S.flags.glow = 1; save();
+      if (first) {
+        if (window.fbq) window.fbq("track", "Purchase", { value, currency: cur, content_name: "addon_" + u.id }, { eventID: cs });
+        console.info("[track]", "Purchase", { value, addon: u.id, cs });
+        track("AddOnPurchased", { item: u.id, value, currency: cur, second_chance: !!j.skip });
+      }
+      toast(`${u.name} is unlocked. Thank you!`);
+      next = nextOffer(u.id);
+    } else {
+      const p = planById(j.plan), first = S.paid !== j.plan;
+      if (CONFIG.PLANS_GLOW.some((q) => q.id === j.plan)) S.flags.glow = 1;
+      S.paid = j.plan; save();
+      if (first) {
+        const value = typeof j.value === "number" ? j.value : p.price;
+        // eventID = checkout session, so a later server-side (CAPI) Purchase is deduplicated with this one
+        if (window.fbq) window.fbq("track", "Purchase", { value, currency: cur, content_name: p.id }, { eventID: cs });
+        console.info("[track]", "Purchase", { value, plan: p.id, cs });
+        track("Subscribe", { value, currency: cur });
+      }
+      toast(`${p.name} is active. Thank you!`);
+      if (S.flags.glow) { S.flags.upFlow = 1; save(); next = nextOffer(null); } else next = "welcome";
     }
-    toast(`${p.name} is active. Thank you!`);
   } catch (e) {
     toast(String(e.message || e).slice(0, 160) + " Write to " + CONFIG.SUPPORT_EMAIL);
     go("paywall"); return;
   }
-  go(glowPlan ? "preview" : "welcome");
+  go(next);
 }
+
+// ---------- one-time add-ons after checkout: Looks, then Coach ----------
+// Each is offered at its price; if she says no, once more at the second-chance price; then the next one.
+// Both prices are real prices she can pay (no crossed-out price that was never charged).
+function nextOffer(after) {
+  if (S.flags.upFlow) {
+    const ids = CONFIG.UPSELLS.map((u) => u.id);
+    for (const id of ids.slice(ids.indexOf(after) + 1)) if (!owns(id)) { save(); return "up/" + id; }
+  }
+  S.flags.upFlow = 0;
+  if (S.owned.coach && !S.analysis) { // Coach needs her face report: answer 2 quick questions, the report is built from her photo
+    S.startedAt = S.startedAt || now().toISOString(); S.goal = S.goal || "skin"; save(); return "goal";
+  }
+  save(); return "preview";
+}
+R.up = {
+  needs: true,
+  view: (arg) => {
+    const [id, phase] = String(arg || "").split("-"), u = upsellOf(id) || CONFIG.UPSELLS[0], second = phase === "2";
+    const price = second ? u.skipPrice : u.price, key = u.id + (second ? "-2" : ""), last = S.previews[0];
+    return `<div class="scr" style="gap:14px">
+      <div class="top"><span class="pill chip">${ico("gift", 14)} One-time add-on</span><span class="spacer"></span></div>
+      ${last ? `<div class="photo" style="height:150px;border-radius:24px"><img src="${last.img}" alt="Your edit"></div>` : ""}
+      <span class="tbub" style="--tc:var(--lilac)">${ico(u.icon, 30)}</span>
+      <h1 class="h1 xl">${esc(u.title)}</h1>
+      <div class="col" style="font-size:14px;font-weight:700;gap:9px">${u.points.map((t) => `<div class="top" style="justify-content:flex-start;gap:10px">${ico("check", 20)}<span>${esc(t)}</span></div>`).join("")}</div>
+      <p class="small center" style="font-size:13px;font-weight:800">${second ? "One more offer" : "Pay once"}: $${price.toFixed(2)}. No subscription, nothing renews.</p>
+      <button class="cta" data-act="upBuy" data-v="${key}">${ico("lock", 22)} Add ${esc(u.name)} · $${price.toFixed(2)}</button>
+      <button class="link" data-act="upNo" data-v="${key}">No thanks</button>
+      <p class="small center" style="font-size:11px">Your Glow plan stays active. Payments by Stripe. <a href="terms.html" target="_blank" rel="noopener">Terms</a></p></div>`;
+  },
+  mount: async (arg) => {
+    const u = upsellOf(String(arg || "").split("-")[0]) || CONFIG.UPSELLS[0];
+    trackOnce("AddOnView_" + u.id);
+    if (testerOn()) return;
+    if (ui.ai === null) await checkAI();
+    if (!ui.ai?.upsells) { toast("Add-ons are not available yet."); go(nextOffer(u.id)); }
+  },
+};
+ACT.upBuy = async (v, el) => {
+  const [id, phase] = String(v).split("-"), u = upsellOf(id); if (!u) return;
+  const skip = phase === "2", price = skip ? u.skipPrice : u.price;
+  track("InitiateCheckout", { value: price, currency: CONFIG.CURRENCY, content_name: "addon_" + u.id });
+  if (testerOn()) { S.owned = { ...S.owned, [u.id]: 1 }; save(); toast(`Tester mode: ${u.name} unlocked`); return go(nextOffer(u.id)); }
+  const label = el && el.textContent;
+  if (el) { el.disabled = true; el.textContent = "Opening secure checkout…"; }
+  try {
+    const r = await fetch("api/checkout", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "upsell", item: u.id, skip, email: S.email || "", utm: S.utm, customer: S.billing?.customer, token: S.billing?.token }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) throw new Error(j.error || "Checkout didn't open. Try again.");
+    location.href = j.url;
+  } catch (e) { if (el) { el.disabled = false; el.textContent = label; } toast(String(e.message || e).slice(0, 160)); }
+};
+ACT.upNo = (v) => {
+  const [id, phase] = String(v).split("-");
+  track("AddOnDeclined", { item: id, second_chance: phase === "2" });
+  if (phase !== "2" && S.flags.upFlow) return go(`up/${id}-2`); // the second-chance price is only part of the post-checkout sequence
+  go(nextOffer(id));
+};
 // Stripe Customer Portal: change plan, update card, cancel (the signed token proves this browser is the buyer).
 ACT.manageSub = async (_v, el) => {
   if (!S.billing?.customer) return toast("Open the link in your receipt email to manage the plan.");
@@ -1823,18 +1905,19 @@ ACT.shareTo = async (how) => {
 // =============== ACCOUNT, REMINDERS, PRIVACY ===============
 // Account for the Glow flow: plan, upgrade, manage subscription (Stripe portal), privacy, help.
 function glowAccount() {
-  const p = S.paid ? planById(S.paid) : null, pro = isPro(), left = previewsLeft();
+  const p = S.paid ? planById(S.paid) : null, left = previewsLeft();
+  const mine = CONFIG.UPSELLS.filter((u) => owns(u.id)), missing = CONFIG.UPSELLS.filter((u) => !owns(u.id));
   const row = (ic, t, s, attrs, tag = "button") => `<${tag} class="row" ${attrs}><span class="rowi">${ico(ic, 24)}</span><span class="grow"><b>${t}</b><small>${s}</small></span>${ico("next", 20)}</${tag}>`;
   return `<div class="scr">
     <div class="top">${backBtn("preview")}<span class="pill chip">Account</span><span class="spacer"></span></div>
     <h1 class="h1">Your plan</h1>
     <div class="card plan-card">
-      <div class="top"><span class="eyebrow-w">${p ? "Active" : "Free plan"}</span><span class="pill" style="background:#fff;color:var(--ink)">${pro ? "Pro" : p ? "Glow" : "Free"}</span></div>
+      <div class="top"><span class="eyebrow-w">${p ? "Active" : "Free plan"}</span><span class="pill" style="background:#fff;color:var(--ink)">${p ? "Glow" : "Free"}${mine.length ? " + " + mine.map((u) => u.name).join(" + ") : ""}</span></div>
       <span class="h1" style="font-size:28px">${p ? `${p.name} · $${p.price.toFixed(2)}` : `${left} free ${left === 1 ? "edit" : "edits"} left`}</span>
       <span style="font-size:13px;font-weight:700;opacity:.9">${p ? (S.billing?.customer ? "Change plan, update your card or cancel below." : "Manage or cancel from your payment receipt email.") : "Get unlimited retouch and HD download with Glow."}</span></div>
     <div class="col">
-      ${!p ? row("crown", "Get Glow or Pro", "Unlimited edits and HD download", 'data-act="seePlans" data-v="glow"') : ""}
-      ${p && !pro ? row("cube", "Upgrade to Pro", "Adds your 3D twin and all looks", 'data-act="seePlans" data-v="pro"') : ""}
+      ${!p ? row("crown", "Get Glow", "Unlimited edits, Studio and HD download", 'data-act="seePlans" data-v="glow"') : ""}
+      ${p ? missing.map((u) => row(u.icon, `Add ${u.name}`, `One-time $${u.price.toFixed(2)} · ${esc(u.title)}`, `data-act="seePlans" data-v="${u.id}"`)).join("") : ""}
       ${p && S.billing?.customer ? row("settings", "Manage subscription", "Change plan, update card, cancel in 2 taps", 'data-act="manageSub"') : ""}
       ${row("shield", "Privacy and my data", "Photos stay in this browser. Delete anytime", 'data-go="privacy"')}
       ${row("mail", "Help", esc(CONFIG.SUPPORT_EMAIL), `href="mailto:${CONFIG.SUPPORT_EMAIL}"`, "a")}
