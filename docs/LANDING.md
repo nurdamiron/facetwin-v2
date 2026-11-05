@@ -1,6 +1,6 @@
 # FaceTwin landing and funnel: what we decided and what is left
 
-Status as of 5 Nov 2026. This file is the memory of the landing work so nobody has to rediscover it.
+Status as of 5 Nov 2026. The ordered plan is in section 7. This file is the memory of the landing work so nobody has to rediscover it.
 It describes the **same product** as `docs/PRODUCT.md`, it does not change it.
 
 ## 0. The product, in one place (do not drift from this)
@@ -167,6 +167,61 @@ Check the whole site before I publish. Report as a table (problem, where, severi
 Then let me pick what to fix. Do not publish.
 ```
 
-## 6. Security notes
+## 7. Plan: what to do next, in order
+
+Priorities: **P0** = before the demo and before anyone outside sees the landing. **P1** = before paid ads. **P2** = after launch.
+"Done when" is the check that tells you the step is really finished. Nothing here changes the product (section 0).
+
+### P0: make the demo real
+
+| # | Step | Owner | Done when |
+|---|---|---|---|
+| 1 | In Vercel (Production and Preview) set `GEMINI_API_KEY` and `STRIPE_SECRET_KEY` (test key). Run `STRIPE_SECRET_KEY=sk_test_... node scripts/stripe-setup.js <site url>` and paste the printed `STRIPE_PRICE_*`, `STRIPE_COUPON_*`, `STRIPE_PORTAL_CONFIG`. Redeploy. In the Stripe Dashboard turn on "emails about upcoming renewals" (the paywall promises a 3-day reminder). | owner | `<app>/api/status` shows `"ai": true, "payments": true, "upsells": true` |
+| 2 | Run the prompts of `PROMPTS.md` in Google AI Studio on 5-10 real photos (with consent), then in the app. Score each: looks real, still clearly her, teeth / freckles edits are not no-ops, no plastic skin. | owner, Claude reads results | At least 6 of 8 Glow edits score 4+ of 5 on realism and "still me". If not, fix the prompts or the model (`GEMINI_IMAGE_MODEL`) before anything else |
+| 3 | Keep 2-3 of the best before/after pairs (with consent) for the landing. | owner | Pairs exist as files; Claude puts them in the hero slider and the results slider |
+| 4 | Real Stripe test payment, end to end: selfie -> edit -> paywall -> card `4242 4242 4242 4242` -> Looks offer -> decline -> second-chance price -> Coach. Also try Settings -> Manage subscription. | owner, Claude can re-check | Every screen works on a phone; the right amounts appear in Stripe |
+| 5 | Run the Framer agent prompts 5.1 to 5.4. | owner | `/launch-check` returns no leftover "Sensoria" / "template" and no author or stranger links |
+| 6 | Give Claude the production app domain; Claude replaces the link on every landing button, in `PUBLIC_URL`, and in `SHARE_URL`. | owner, Claude | Landing buttons, Stripe return URL and share card all point to the production domain |
+| 7 | Fill the `[brackets]` in `privacy.html` and `terms.html`. | owner / lawyer | No `[` left in both files |
+| 8 | **Revoke the Framer API key** and any Vercel token. | owner | Keys removed in Framer settings and Vercel |
+
+### P1: before paid ads
+
+| # | Step | Owner | Done when |
+|---|---|---|---|
+| 9 | Meta Pixel: set `META_PIXEL_ID` in `config.js` and add the Pixel in Framer site settings (custom code). Set `LEAD_ENDPOINT`. | owner | Events Manager shows `PageView`, `PhotoUploaded`, `PreviewGenerated`, `InitiateCheckout`, `Purchase` from a test run |
+| 10 | The four Faceshift ideas on the landing (section 2): hero before/after slider, "Why filters fail", upload mock-up in "How it works", "Filters vs facetwin." table. Add Looks / Coach as two small cards using the existing Pricing Card. | Claude | Phone screenshots show the slider above the fold and nothing overlaps |
+| 11 | Real-device test: iPhone Safari and Android Chrome for upload, camera permission, the compare slider, the paywall, and (Looks) the 3D twin (first load downloads ~95 MB; check on mobile data). | owner | No blocker on either phone; 3D twin opens or is clearly marked as optional |
+| 12 | Fix the pitch deck claims: replace "photos never leave her phone" with the real consent wording; "360°" to "180°, face"; drop the crossed-out $59.99 / $49.99; one value for the first quarter ($22.49 or $22.50); make the two "net" definitions (89% and 81.2%) say what each is. | owner | Deck and `docs/PRODUCT.md` say the same thing as the app |
+| 13 | Real access control: Stripe webhooks plus a small backend so entitlements are not only in the browser (`S.paid`, `S.owned`). Hard rate limit (Upstash or Vercel KV) and a Google spend cap. | Claude | A user who edits local storage cannot unlock HD or Looks; spend cannot exceed the cap |
+| 14 | Delete unused Framer pages and decide on a paid Framer plan (removes the badge, allows a custom domain). | owner | Only the landing and a 404 exist; custom domain set if wanted |
+
+### P2: after launch
+
+- Replace placeholders with real social proof only when it exists (real quotes with permission, real counts). Never before.
+- Weekly paywall and funnel tests, as in the deck: one change at a time on CTR, selfie upload rate, paywall-to-purchase.
+- Stripe live mode: US LLC, Vercel Pro, live keys, then re-run `scripts/stripe-setup.js --live`.
+- Roadmap from the deck: Coach with the live camera (M4), video retouch (M7), UK / CA / AU (M10).
+- Re-measure edit time on real Gemini and update "about 10 seconds" if it differs.
+
+## 8. Demo-day order and fallback
+
+1. Open the landing on a phone (not a desktop window): hero, scroll once, tap **Upload a selfie**.
+2. Upload a real selfie (not the demo face), tap **Show me**, accept the consent, show before/after.
+3. Try one Studio edit (white background) to show a second type of edit.
+4. Tap **Download in HD** -> paywall -> pay with the test card -> show the Looks offer -> decline -> show the second-chance price.
+5. Show Settings -> Manage subscription (cancel in two taps).
+6. Fallback: a recorded Loom of steps 1-5 (put the link on the demo slide next to the live link). Do the live path once in an incognito window the day before.
+
+## 9. Risks, ranked
+
+1. **Gemini quality is unverified.** Everything else is built on it. Step 2 decides whether the product works.
+2. **Landing is public with template leftovers.** Do not share the link before step 5.
+3. **Prices live in three places** (Excel, `config.js`, Framer). Drift is silent. Change all three together.
+4. **Entitlements live in the browser** until step 13. Fine for a demo, not for ads.
+5. **Framer badge and shared key.** The badge needs a paid plan; the key must be revoked.
+6. **Claims.** The deck still has two claims the app contradicts (step 12).
+
+## 10. Security notes
 - A Framer API key was pasted into a chat. Treat it as exposed: revoke it in the Framer project settings (API Keys) when the work is done. Never commit keys; this repo has none (checked).
 - The session network allow-list was extended with Framer hosts for reading references; it lives in the author's Claude environment, not in this repo.
