@@ -9,15 +9,26 @@ export const CONFIG = {
 
   // Checkout links from your payment provider (Paddle, Lemon Squeezy, Gumroad, Stripe...).
   // Leave "" and the paywall shows an honest "payments open soon / early access" screen instead.
-  PAYMENT_LINKS: { trial: "", four: "", twelve: "", glow_m: "", glow_y: "", pro_m: "", pro_y: "" },
+  PAYMENT_LINKS: { trial: "", four: "", twelve: "", glow_m: "", glow_q: "" },
+  // Main path is Stripe Checkout through /api/checkout (keys in Vercel env vars, see README "Payments").
+  // PAYMENT_LINKS above are only the fallback. Old unlock by URL (?paid=glow_m) stays OFF: anyone can type it.
+  ALLOW_PAID_PARAM: false,
+  // ?tester=1 unlocks everything for the team. Works on localhost and with ?debug=1 only; set true to allow it on the public site (a demo, a review). Anyone who knows the URL can use it.
+  ALLOW_TESTER: false,
 
-  // V2 plans (Glow editor + Pro). price = what she pays today, then = the recurring price.
-  // Monthly plans start with a 20% first-month discount (Offer tab of the unit-economics sheet).
+  // V2 plans, as in the pitch deck and the unit-economics sheet (Excel v5). price = what she pays today,
+  // then = the recurring price. The first month / quarter is $10 / $22.50 off (Stripe coupons), see scripts/stripe-setup.js.
   PLANS_GLOW: [
-    { id: "glow_m", tier: "Glow", name: "Glow monthly", price: 7.99, then: 9.99, period: "month", note: "first month, then $9.99 a month" },
-    { id: "glow_y", tier: "Glow", name: "Glow annual", price: 49.99, then: 49.99, period: "year", note: "$4.17 a month · save 58% vs monthly", popular: true },
-    { id: "pro_m", tier: "Pro", name: "Pro monthly", price: 15.99, then: 19.99, period: "month", note: "first month, then $19.99 · adds 3D twin + 12-week plan" },
-    { id: "pro_y", tier: "Pro", name: "Pro annual", price: 99.99, then: 99.99, period: "year", note: "$8.33 a month · 3D twin, plan, weekly re-scan" },
+    { id: "glow_m", tier: "Glow", name: "Glow monthly", price: 9.99, then: 19.99, period: "month", note: "first month, then $19.99 a month" },
+    { id: "glow_q", tier: "Glow", name: "Glow quarterly", price: 22.49, then: 44.99, period: "quarter", note: "first quarter, then $44.99 every 3 months · $15.00 a month", popular: true },
+  ],
+  // One-time add-ons offered right after checkout. price = first offer, skipPrice = the one second chance if she declined.
+  // Both are real prices she can pay; the app never shows a crossed-out price that was never charged.
+  UPSELLS: [
+    { id: "looks", name: "Looks", icon: "cube", price: 29.99, skipPrice: 23.99, title: "See the change on your 3D twin",
+      points: ["Your 3D twin, turn it to any angle", "Try haircuts, colors, braids, brows and beards on your face", "Describe any idea in your own words"] },
+    { id: "coach", name: "Coach", icon: "dumbbell", price: 24.99, skipPrice: 19.99, title: "Train for the change",
+      points: ["A 12-week plan for your face", "Live camera coach that counts reps and checks form", "Weekly re-scan to see your progress"] },
   ],
 
   // Plans shown on the paywall of the older V1 flow (prices from the HW2 LTV model).

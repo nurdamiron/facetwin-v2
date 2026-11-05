@@ -2,5 +2,10 @@
   "name": "facetwin",
   "private": true,
   "type": "module",
-  "description": "FaceTwin: Glow natural retouch (V2) and the 3D twin (Pro). Static app + two Vercel functions."
+  "description": "FaceTwin: Glow natural retouch (V2) with Looks and Coach add-ons. Static app + Vercel functions.",
+  "scripts": {
+    "test": "node --test \"tests/unit/*.test.mjs\"",
+    "dev": "node scripts/dev-server.mjs",
+    "prompts": "node scripts/gen-prompts.mjs"
+  }
 }
