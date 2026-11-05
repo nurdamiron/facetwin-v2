@@ -21,8 +21,8 @@ export const CONFIG = {
   PLANS_GLOW: [
     { id: "glow_m", tier: "Glow", name: "Glow monthly", price: 7.99, then: 9.99, period: "month", note: "first month, then $9.99 a month" },
     { id: "glow_y", tier: "Glow", name: "Glow annual", price: 49.99, then: 49.99, period: "year", note: "$4.17 a month · save 58% vs monthly", popular: true },
-    { id: "pro_m", tier: "Pro", name: "Pro monthly", price: 15.99, then: 19.99, period: "month", note: "first month, then $19.99 · adds 3D twin + 12-week plan" },
-    { id: "pro_y", tier: "Pro", name: "Pro annual", price: 99.99, then: 99.99, period: "year", note: "$8.33 a month · 3D twin, plan, weekly re-scan" },
+    { id: "pro_m", tier: "Pro", name: "Pro monthly", price: 15.99, then: 19.99, period: "month", note: "first month, then $19.99 · 3D twin + all looks" },
+    { id: "pro_y", tier: "Pro", name: "Pro annual", price: 99.99, then: 99.99, period: "year", note: "$8.33 a month · 3D twin + all looks" },
   ],
 
   // Plans shown on the paywall of the older V1 flow (prices from the HW2 LTV model).

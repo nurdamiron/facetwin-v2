@@ -815,6 +815,7 @@ R.preview = {
   view: (id) => {
     if (id && previewById(id)) { ui.prevSel = id; ui.prevGroup = previewById(id).group; }
     const sel = ui.prevSel || (S.flags.glow ? "onetap" : suggestions()[0]) || PREVIEWS[0].id, p = previewById(sel), left = previewsLeft();
+    ui.prevSel = sel; // mount() and the actions read ui.prevSel, so it must hold the default after a reload too
     const group = ui.prevGroup || p.group, base = ui.base;
     const shown = ui.prevKey ? previewOf(ui.prevKey) : sel === "custom" ? null : previewOf(changeKey(sel));
     const before = base ? base.img : S.photos.front, ai = ui.ai;
