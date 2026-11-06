@@ -17,7 +17,7 @@ export async function loadFace() {
     for (const delegate of ["GPU", "CPU"]) {
       try {
         landmarker = await FaceLandmarker.createFromOptions(fs, {
-          baseOptions: { modelAssetPath: path, delegate }, runningMode: "IMAGE", numFaces: 1,
+          baseOptions: { modelAssetPath: path, delegate }, runningMode: "IMAGE", numFaces: 2,
         });
         return landmarker;
       } catch (e) { console.warn("[facetwin] face model", path, delegate, e); }
@@ -86,10 +86,12 @@ async function loadHairInner() {
 export const hairReady = () => !!hairSeg;
 export const hairFailed = () => hairTried && !hairSeg && !hairLoading;
 
+export let lastFaceCount = 0; // faces found by the last detect() call (2 means "two or more")
 export function detect(source) {
   if (!landmarker) return null;
   try {
     const r = landmarker.detect(source);
+    lastFaceCount = r.faceLandmarks ? r.faceLandmarks.length : 0;
     return r.faceLandmarks && r.faceLandmarks[0] ? r.faceLandmarks[0].map((p) => [p.x, p.y, p.z]) : null;
   } catch (e) { console.warn(e); return null; }
 }

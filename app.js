@@ -17,6 +17,7 @@ const app = $("#app");
 const QS = new URLSearchParams(location.search);
 const DEBUG = QS.has("debug");
 const KEY = "facetwin.v1";
+const KEY_ENT = "facetwin.ent"; // what she paid for, kept apart from the photos so a full or corrupted photo store can never take a purchase with it
 const DAY = 864e5;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -35,19 +36,27 @@ const DEFAULT = {
   aiOk: false, aiOkAt: null, // consent to send a photo to the AI editor (asked before the first edit)
   owned: {}, // one-time add-ons she bought: { looks: 1, coach: 1 } (confirmed by /api/verify)
 };
+const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k) || "{}") || {}; } catch { return {}; } };
+let storageWarned = false;
 let S = load();
 function load() {
-  try { return { ...structuredClone(DEFAULT), ...JSON.parse(localStorage.getItem(KEY) || "{}") }; }
-  catch { return structuredClone(DEFAULT); }
+  const base = readJSON(KEY), ent = readJSON(KEY_ENT);
+  const s = { ...structuredClone(DEFAULT), ...base };
+  s.paid = base.paid || ent.paid || null; s.billing = base.billing || ent.billing || null; s.owned = { ...(ent.owned || {}), ...(base.owned || {}) };
+  s.email = base.email || ent.email || ""; s.flags = { ...(base.flags || {}), ...(ent.glow ? { glow: 1 } : {}) };
+  return s;
 }
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  try { localStorage.setItem(KEY_ENT, JSON.stringify({ paid: S.paid, owned: S.owned, billing: S.billing, email: S.email, glow: S.flags.glow ? 1 : 0 })); } catch { /* tiny, but the quota can be zero */ }
+  try { localStorage.setItem(KEY, JSON.stringify(S)); return true; }
   catch (e) {
     S.previews.forEach((q, i) => { if (i > 0) delete q.hd; }); // storage full: first drop the older HD files
-    try { localStorage.setItem(KEY, JSON.stringify(S)); return; } catch { /* keep trimming */ }
+    try { localStorage.setItem(KEY, JSON.stringify(S)); return true; } catch { /* keep trimming */ }
     // still full: keep only the first and the latest scan photos
     S.scans = S.scans.map((s, i) => (i === 0 || i === S.scans.length - 1 ? s : { ...s, img: null }));
-    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { console.warn("[facetwin] storage full", e); }
+    try { localStorage.setItem(KEY, JSON.stringify(S)); return true; } catch { console.warn("[facetwin] storage full", e); }
+    if (!storageWarned) { storageWarned = true; setTimeout(() => toast("Your phone's storage is full. Download your photo now: it won't be kept after you close the app."), 300); }
+    return false;
   }
 }
 
@@ -265,13 +274,22 @@ R.landing = {
 function bindGlowUpload() {
   const inp = $("#glowUpl"); if (!inp) return;
   inp.addEventListener("change", async () => {
-    const f = inp.files && inp.files[0]; if (!f) return;
+    const f = inp.files && inp.files[0]; inp.value = ""; if (!f) return; // reset so the same file can be chosen again
+    if (f.type && !/^image\//.test(f.type)) { track("BadPhoto", { reason: "type" }); return toast("That isn't a photo. Choose a JPG or PNG selfie."); }
+    if (f.size > 40e6) { track("BadPhoto", { reason: "size" }); return toast("That photo is too big. Choose one under 40 MB."); }
     toast("Reading your photo…"); track("PhotoUploaded", { mode: "glow" });
-    await useGlowPhoto(await fileToDataURL(f, 1024), "upload");
+    let url;
+    try { url = await fileToDataURL(f, 1024); }
+    catch { track("BadPhoto", { reason: "unreadable" }); return toast("We couldn't open that photo. Try a JPG or PNG (on iPhone: Camera settings, Formats, Most Compatible)."); }
+    await useGlowPhoto(url, "upload");
   });
 }
 async function useGlowPhoto(url, source) {
-  try { await V.loadFace(); if (!V.detect(await loadImg(url))) { track("NoFace", { source }); return toast("We couldn't find a face. Try a clear, front-facing selfie."); } }
+  try {
+    await V.loadFace();
+    if (!V.detect(await loadImg(url))) { track("NoFace", { source }); return toast("We couldn't find a face. Try a clear, front-facing selfie."); }
+    if (V.lastFaceCount > 1) { track("BadPhoto", { reason: "several_faces" }); return toast("We see more than one face. Use a photo with only you in it."); }
+  }
   catch (e) { console.warn("[facetwin] face check skipped", e); }
   S.photos = { front: url }; S.lms = {}; S.depth = null; S.depthSide = {}; ui.head = null;
   ui.prevSel = "onetap"; ui.prevGroup = "Glow"; ui.prevKey = null; ui.base = null;
@@ -981,8 +999,14 @@ ACT.prevSave = async () => {
   if (S.flags.glow && !isPaid()) { // V2: saving the file is behind the paywall; straight to the plans, no extra sheet
     track("HDTapped", { preview: q.id }); S.flags.upFlow = 0; if (!CONFIG.PLANS_GLOW.some((x) => x.id === S.chosen)) S.chosen = "glow_q"; save(); return go("paywall");
   }
-  const blob = await (await fetch(q.hd || q.img)).blob();
-  download(blob, `facetwin-${q.id.replace(/[^a-z0-9+-]/gi, "")}.jpg`); track("PreviewSaved", { preview: q.id });
+  const blob = await (await fetch(q.hd || q.img)).blob(), name = `facetwin-${q.id.replace(/[^a-z0-9+-]/gi, "")}.jpg`;
+  if (!q.hd) toast("Saved at standard size. Only your 4 newest edits keep the full HD file."); // older edits were trimmed to save space
+  const file = new File([blob], name, { type: "image/jpeg" });
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); track("PreviewSaved", { preview: q.id, via: "share" }); return; }
+    catch (e) { if (e && e.name === "AbortError") return; /* she closed the sheet */ } // any other error: fall back to a download
+  }
+  download(blob, name); track("PreviewSaved", { preview: q.id, via: "download" });
 };
 
 ACT.twinView = (v) => { ui.twinView = v; render(); };
@@ -1982,7 +2006,8 @@ function glowAccount() {
 }
 
 R.account = {
-  needs: true, app: true, glowOk: true,
+  get needs() { return !S.flags.glow; }, // a Glow subscriber can always reach her plan and Manage subscription, even if her photos are gone
+  app: true, glowOk: true,
   view: () => {
     if (S.flags.glow) return glowAccount();
     const p = S.paid ? planById(S.paid) : null;
@@ -2079,7 +2104,7 @@ R.deletedata = {
     <button class="cta inline" style="background:var(--danger)" data-act="wipe">Yes, delete my data</button>
     <button class="ghost" data-go="privacy">Keep my twin</button></div>`,
 };
-ACT.wipe = () => { track("DataDeleted"); localStorage.removeItem(KEY); S = load(); toast("Deleted. Everything is gone from this phone."); go("landing"); };
+ACT.wipe = () => { track("DataDeleted"); localStorage.removeItem(KEY); localStorage.removeItem(KEY_ENT); S = load(); toast("Deleted. Everything is gone from this phone."); go("landing"); };
 
 // =============== BOOT ===============
 function boot() {
