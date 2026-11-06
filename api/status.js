@@ -1,6 +1,7 @@
 // Tells the page what is available (the page calls api/status on load): the AI editor, Stripe payments and the add-ons.
 import * as S from "./_stripe.js";
 import { aiProvider } from "./_ai.js";
+import { mailConfigured } from "./_mail.js";
 
 export default function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -13,5 +14,6 @@ export default function handler(req, res) {
     payments: S.configured(),
     upsells: S.configured() && S.upsellsConfigured(),
     paymentsMock: S.mockOn(),
+    restore: S.mockOn() || (S.configured() && mailConfigured()), // "Restore purchase" by email code needs Stripe + RESEND_API_KEY + MAIL_FROM
   });
 }
