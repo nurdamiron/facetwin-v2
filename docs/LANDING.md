@@ -70,6 +70,8 @@ Built through the Framer Server API (`framer-api`, key per project, WebSocket to
 - the template's extra pages (About, Careers, Journal, Contact, Legal) still exist
 - hero: on phone the small line "Natural retouch in seconds" touches the big word FACETWIN.
 
+The scripts are in [`tools/framer/`](../tools/framer/README.md). **After any price change run `set-prices.mjs`** so the cards match `config.js`.
+
 ### What the Server API can and cannot do (so nobody repeats the research)
 - Can: read and write text on the page, set controls of component instances (tags, numbers, buttons, links, FAQ items, pricing cards), create / remove / move nodes (`setParent`), publish.
 - Cannot: read or change text **inside master components** (header, footer, logo, the FAQ and pricing masters). `getText` says "Node is not a text node", `getNode` returns null.

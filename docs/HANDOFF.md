@@ -54,6 +54,7 @@ Still to do in the audit, in this order:
 - Access was through the **Server API**: `npm i framer-api` (Node 22), `FRAMER_API_KEY` env var, WebSocket to `api.framer.com`. In the Claude sandbox run Node with `NODE_USE_ENV_PROXY=1` so the WebSocket uses the proxy. An official **Framer MCP connector** also exists in the Claude connector registry (OAuth, no key); it was never connected.
 - Works: read/write text and component-instance controls on the page, `addDetachedComponentLayers`, `setParent`, `removeNodes`, `publish`. Cannot: text inside master components (header, footer, logo). Details and pitfalls (stray copies at breakpoint roots, mirrored breakpoint nodes) are in `docs/LANDING.md` section 3.
 - `publish()` goes live immediately at the `.framer.app` URL.
+- The scripts that built the page are in `tools/framer/` (README there). `set-prices.mjs` keeps the pricing cards equal to `config.js`; the Framer content itself lives in the Framer project, not in git.
 
 ## 6. Credentials: names only, never values
 

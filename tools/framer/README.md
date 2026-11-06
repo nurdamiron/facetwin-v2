@@ -1,0 +1,21 @@
+# Framer landing tools
+
+Scripts that built and maintain the Framer landing (Server API, `framer-api`). They never contain a key.
+
+```bash
+cd tools/framer && npm install            # installs framer-api (Node 22)
+export FRAMER_API_KEY=...                 # per project: Framer -> Site settings -> API Keys. Never commit it. Revoke when done.
+export NODE_USE_ENV_PROXY=1               # only needed inside the Claude cloud sandbox (WebSocket via the proxy)
+export FRAMER_PROJECT=https://framer.com/projects/<your project>   # optional, default is the capstone copy
+```
+
+| Script | What it does | Reusable? |
+|---|---|---|
+| `set-prices.mjs` | writes the two Glow pricing cards from `../../config.js` (`DRY=1` to preview). Does not publish | **yes, run after every price change** |
+| `apply.mjs` | page copy + component controls + links to the app + FAQ replacement (`DRY=1` to preview, `APP_URL=` for the button link) | yes, idempotent: it only changes texts that still match the old template wording |
+| `verify.mjs` | reads the page and lists leftover template wording, link-like values, FAQ items per breakpoint | yes |
+| `faqdiag.mjs`, `fixfaq.mjs` | find and remove duplicate / stray FAQ Block frames | yes, after any detach |
+| `pub.mjs` | `publish()`: **goes live immediately** at the project's `.framer.app` URL | yes, use deliberately |
+| `pricing.mjs`, `logo.mjs` | one-off replacements of the Pricing Table and the logo in one card (they target node ids that no longer exist) | no, kept as examples of the detach -> edit -> `setParent` -> remove technique |
+
+Gotchas are in `docs/LANDING.md` section 3: masters cannot be edited through the API, the detached insert leaves a stray copy at the root of each breakpoint, and breakpoint nodes are mirrored.
