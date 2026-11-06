@@ -48,6 +48,14 @@ Still to do in the audit, in this order:
 7. Cleanup from ESLint: unused `defaultLooks`, `lookChips`, `hairOn`, `daysDone`.
 8. Real access control (Stripe webhooks, hard rate limit) is a known open item (README "Known limits").
 
+## 4b. Funnel fixes of 6 Nov (afternoon)
+
+- **Waiting screens never look frozen** (`crawler`, `waitScreen`, `fetchT` in `app.js`): the ring and bars always creep forward, status lines rotate, after 12 s an honest "keep this page open" hint, hard timeouts. The 3D AI download (`depth3d.js`) has a stall watchdog and one retry, shows MB instead of a stuck 0%, and is prefetched while she takes the selfie; a stuck 3D step is skipped, the twin still works. Used on: building the twin, AI edit, opening Stripe, confirming payment. Tests: `tests/e2e/waiting.cjs`.
+- **No photo on the add-on offer screens** (it was her last edit, cropped and pointless there).
+- **Photos instead of cartoon/mismatched icons**: 13 routine step photos in `assets/routine/` (`scripts/gen-routine-photos.mjs`) and 26 option photos for hair colour, hairstyle, braids, brows, beard in `assets/looks/` (`scripts/gen-look-photos.mjs`), both made with OpenAI Images (`gpt-image-2.6-sunburst`, override with `OPENAI_IMAGE_MODEL`). They are AI-generated examples, not customers: never present them as users or results. Tests: `tests/e2e/steps.cjs`, `tests/e2e/looktiles.cjs`.
+- Still cartoon / icon-only: the exercise coach screens (`exercises.js`, animated face) and the V1 "Meet your 3D twin" tiles (`faceArt`). Next candidates for photos.
+- The OpenAI key for these scripts was entered through the secure form (host `api.openai.com`); it is not in the repo. Locally use `OPENAI_API_KEY=...`.
+
 ## 5. Framer: how it was built, and what the API can do
 
 - Project: "Sensoria Template // Luna UI (copy)". URL: `https://framer.com/projects/Sensoria-Template-Luna-UI-copy--DOwz3irvvOVivUqlhoe2-31Z3Y`. Home page node `augiA20Il`; breakpoint frames Desktop / Tablet / Phone.

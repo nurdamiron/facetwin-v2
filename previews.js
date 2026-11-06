@@ -117,6 +117,9 @@ export const PREVIEWS = [
 
 export const previewById = (id) => PREVIEWS.find((p) => p.id === id);
 // text: her own words, only for the "Your idea" option.
+// Hair, brows and beard options show an example photo (scripts/gen-look-photos.mjs) instead of a generic icon.
+const PHOTO_GROUPS = ["Hair color", "Hairstyle", "Braids", "Brows", "Beard & mustache"];
+for (const p of PREVIEWS) if (PHOTO_GROUPS.includes(p.group)) p.photo = `assets/looks/${p.id}.jpg`;
 export const promptFor = (id, text = "") => {
   const p = previewById(id);
   return (p && p.studio ? BASE_STUDIO : p && p.retouch ? BASE_RETOUCH : BASE)(id === "custom" ? cleanIdea(text) : p.change);

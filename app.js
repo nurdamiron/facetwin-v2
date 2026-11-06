@@ -391,7 +391,7 @@ R.looks = {
     <p class="sub">Pick up to 3. We'll show them realistically on your own face, in 3D.</p>
     <div class="grid2">${PREVIEWS.filter((p) => p.pick).map((p, i) => {
       const on = S.wants.includes(p.id);
-      return tile(p.icon, p.name, { on, i, attrs: `data-act="pickWant" data-v="${p.id}"` });
+      return tile(p.icon, p.name, { on, i, photo: p.photo, attrs: `data-act="pickWant" data-v="${p.id}"` });
     }).join("")}</div>
     <button class="cta" data-act="looksNext" ${S.wants.length ? "" : "disabled"}>${S.wants.length ? `${S.wants.length} picked · next` : "Pick at least 1"}</button></div>`,
 };
@@ -901,7 +901,7 @@ R.twin = {
       </div>
       <button class="row" data-go="coach" style="background:var(--lilac);color:var(--ink)"><span><b>💪 Train your jawline with your camera</b><small style="color:var(--ink);opacity:.7">Live rep counting and form checks · try one free</small></span><span class="r">›</span></button>
       <div class="top"><b style="font-size:17px">See these on you</b><span class="small">realistic AI preview</span></div>
-      <div class="grid2">${suggestions().map((id, i) => { const p = previewById(id); return tile(p.icon, p.name, { i, attrs: `data-go="preview/${id}"` }); }).join("")}</div>
+      <div class="grid2">${suggestions().map((id, i) => { const p = previewById(id); return tile(p.icon, p.name, { i, photo: p.photo, attrs: `data-go="preview/${id}"` }); }).join("")}</div>
       ${S.goal === "jaw" ? `<button class="cta" data-go="coach">Start my face workout · free</button><button class="link" data-act="twinNext">Save my twin + get my plan</button>` : aiOn ? `<button class="cta" data-go="preview/${first}">See ${esc(previewById(first).name.toLowerCase())} on me · free</button>
         <button class="link" data-act="twinNext">Skip, get my plan</button>`
         : `<button class="cta" data-act="twinNext">Save my report + get my plan</button>`}
@@ -947,8 +947,10 @@ const entryName = (q) => q.name || previewById(q.id)?.name || "Your look";
 const entryIcon = (q) => q.icon || previewById(q.src || q.id)?.icon || "sparkles";
 const TINT = ["var(--peach)", "var(--lilac)", "var(--blue)", "var(--yel)", "var(--pink)", "var(--mint)"];
 // the big picker tile: a 56px icon bubble, the name below, a check when selected
-const tile = (icon, label, { on = false, done = false, i = 0, attrs = "" } = {}) =>
-  `<button class="tile2 ${on ? "on" : ""}" ${attrs} aria-pressed="${on}"><span class="tbub" style="--tc:${TINT[i % TINT.length]}">${ico(icon, 30)}</span><span class="tlabel">${esc(label)}</span>${on ? `<span class="tck">${ico("check", 14)}</span>` : done ? `<span class="tdone">${ico("check", 12)}</span>` : ""}</button>`;
+const tile = (icon, label, { on = false, done = false, i = 0, attrs = "", photo = "" } = {}) =>
+  `<button class="tile2 ${photo ? "has-photo" : ""} ${on ? "on" : ""}" ${attrs} aria-pressed="${on}">${photo
+    ? `<span class="tph" style="--tc:${TINT[i % TINT.length]}"><img src="${esc(photo)}" alt="" loading="lazy" onerror="this.remove()"></span>`
+    : `<span class="tbub" style="--tc:${TINT[i % TINT.length]}">${ico(icon, 30)}</span>`}<span class="tlabel">${esc(label)}</span>${on ? `<span class="tck">${ico("check", 14)}</span>` : done ? `<span class="tdone">${ico("check", 12)}</span>` : ""}</button>`;
 const changeKey = (sel) => (ui.base ? ui.base.id + "+" + sel : sel);
 R.preview = {
   needs: true, tab: "preview",
@@ -980,7 +982,7 @@ R.preview = {
       ${group === "Your idea" ? `<div class="card" style="gap:8px"><b>Describe any change to your face or hair</b>
           <textarea id="ctext" rows="2" maxlength="200" placeholder="e.g. a short curly fade and a thin mustache" style="width:100%;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--text);padding:12px;font:inherit;font-weight:700;resize:none">${esc(ui.ctext || "")}</textarea>
           <small class="small">Keep it to your face and hair. The AI keeps everything else the same.</small></div>`
-        : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
+        : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { photo: q.photo, on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
       ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add your Gemini API key (README → Realistic previews), then restart." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
           ${S.startedAt ? `<button class="link" style="text-align:left;color:var(--ink);text-decoration:underline" data-go="studio">Use the instant drawn try-on meanwhile</button>` : ""}</div>` : ""}
       ${!shown ? `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>` : ""}
