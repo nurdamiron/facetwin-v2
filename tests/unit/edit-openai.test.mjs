@@ -20,12 +20,23 @@ test("OpenAI: sends the photo as a multipart file with the server-built prompt a
       assert.equal(calls[0].headers.Authorization, "Bearer sk-test");
       const fd = calls[0].body;
       assert.ok(fd instanceof FormData);
-      assert.equal(fd.get("model"), "gpt-image-1");
+      assert.equal(fd.get("model"), "gpt-image-2");
       assert.equal(fd.get("prompt"), promptFor("onetap"));
-      assert.equal(fd.get("input_fidelity"), "high");
+      assert.equal(fd.get("input_fidelity"), null, "gpt-image-2 rejects input_fidelity, so it is not sent");
+      assert.equal(fd.get("quality"), "medium");
       assert.equal(fd.get("output_format"), "jpeg");
       assert.ok(fd.get("image") instanceof Blob);
       assert.doesNotMatch(String(fd.get("prompt")), /IGNORE EVERYTHING/);
+    });
+  });
+});
+
+test("OpenAI: the older gpt-image-1 family still gets input_fidelity=high", async () => {
+  await withEnv({ OPENAI_API_KEY: "sk-test", OPENAI_IMAGE_MODEL: "gpt-image-1.5" }, async () => {
+    const h = await fresh("../../api/edit.js");
+    await withFetch(() => OPENAI_OK, async (calls) => {
+      assert.equal((await run(h, post({ image: IMG, id: "onetap" }))).statusCode, 200);
+      assert.equal(calls[0].body.get("input_fidelity"), "high");
     });
   });
 });
@@ -91,7 +102,7 @@ test("provider choice: Gemini wins when both keys exist, AI_PROVIDER=openai over
 test("/api/status reports the provider and never the key", async () => {
   await withEnv({ OPENAI_API_KEY: "sk-secret" }, async () => {
     const h = await fresh("../../api/status.js"); const res = mkRes(); h.default(mkReq({ method: "GET" }), res);
-    assert.equal(res.body.ai, true); assert.equal(res.body.provider, "openai"); assert.equal(res.body.model, "gpt-image-1");
+    assert.equal(res.body.ai, true); assert.equal(res.body.provider, "openai"); assert.equal(res.body.model, "gpt-image-2");
     assert.doesNotMatch(JSON.stringify(res.body), /sk-secret/);
   });
   await withEnv({}, async () => {

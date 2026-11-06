@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 // OpenAI Images "edits": multipart, the photo as a file, the prompt built on the server. JPEG out keeps the reply well under Vercel's 4.5 MB limit.
 // input_fidelity=high asks the model to keep the face as it is; if the chosen model rejects an optional parameter (HTTP 400) we retry once without it.
 async function editOpenAI(res, ai, image, mime, prompt) {
-  const quality = process.env.OPENAI_IMAGE_QUALITY || "medium", fidelity = process.env.OPENAI_INPUT_FIDELITY === undefined ? "high" : process.env.OPENAI_INPUT_FIDELITY;
+  const quality = process.env.OPENAI_IMAGE_QUALITY || "medium", fidelity = process.env.OPENAI_INPUT_FIDELITY === undefined ? (/^gpt-image-1/.test(ai.model) ? "high" : "") : process.env.OPENAI_INPUT_FIDELITY; // gpt-image-2 keeps the face by itself and rejects input_fidelity (HTTP 400), so it is only sent for the gpt-image-1 family
   const send = (optional, withSize = true) => { // optional: quality / format / fidelity; withSize: the size field (the last retry drops it too, so only model + prompt + image are sent)
     const fd = new FormData();
     fd.append("model", ai.model); fd.append("prompt", prompt); if (withSize) fd.append("size", "auto");
