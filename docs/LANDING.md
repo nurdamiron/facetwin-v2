@@ -3,6 +3,8 @@
 Status as of 5 Nov 2026. The ordered plan is in section 6. This file is the memory of the landing work so nobody has to rediscover it.
 It describes the **same product** as `docs/PRODUCT.md`, it does not change it.
 
+The full spec of the finished page (sections, copy, assets, tracking, acceptance criteria) is in [`docs/LANDING_SPEC.md`](LANDING_SPEC.md).
+
 ## 0. The product, in one place (do not drift from this)
 
 FaceTwin = **Glow**: a web app that retouches a selfie in one tap and still looks like the person.
