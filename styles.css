@@ -195,3 +195,4 @@ code { background: rgba(0,0,0,.1); padding: 1px 5px; border-radius: 6px; }
 .ba .photo img { object-position: 50% 22%; }
 .dock.pay { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: -24px; }
 .dock.pay .link { padding: 2px; }
+.ex .cmp img { object-position: 50% 22%; }

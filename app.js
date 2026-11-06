@@ -231,6 +231,14 @@ ACT.back = () => (history.length > 1 ? history.back() : go(""));
 // =============== V2: GLOW (the landing is the editor) ===============
 const GLOW_FEATURES = [["clearskin", "Acne & spots"], ["undereye", "Under-eye bags"], ["wrinkles", "Wrinkles"], ["teeth", "Teeth"], ["frecklesOn", "Freckles"], ["glow", "Glow"]];
 const HOW = [["upload", "Upload a selfie", "Or try a demo face"], ["onetap", "Pick a retouch", "One tap, about 10 seconds"], ["compare", "Compare, then save", "Drag to see before and after"]];
+const EXAMPLES = [["skin", "Skin"], ["under", "Under-eyes"], ["smile", "Smile"], ["freckles", "Freckles"], ["glow", "Glow"]];
+const exampleHTML = (k) => compareHTML(`assets/examples/${k}-before.jpg`, `assets/examples/${k}-after.jpg`, "Before", "After", "60vh");
+ACT.exSel = (k) => {
+  const box = $("#exBox"); if (!box) return;
+  box.innerHTML = exampleHTML(k);
+  $$('[data-act="exSel"]').forEach((b) => b.classList.toggle("on", b.dataset.v === k));
+  track("ExampleViewed", { example: k });
+};
 R.landing = {
   view: () => `<div class="scr land">
     <div class="top">${wordmark()}${S.photos.front ? `<button class="pill chip" data-go="preview">My edits</button>` : `<span class="pill dark">${ico("shield", 14)} Private by design</span>`}</div>
@@ -241,7 +249,9 @@ R.landing = {
     <label class="cta inline" style="cursor:pointer;text-align:center">${ico("camera", 24)} Upload a selfie<input type="file" accept="image/*" hidden id="glowUpl"></label>
     <p class="small center" style="margin-top:-6px">${ico("shield", 14)} 2 free edits · no sign-up · your photo stays in this browser until you tap Show me</p>
     <button class="link p" data-act="glowDemo" style="margin-top:-6px">No selfie handy? Try a demo face</button>
-    <div class="photo hero-photo"><img src="assets/demo/glow.jpg" alt="Demo face"><span class="tl"><span class="pill dark">${ico("sparkles", 14)} Demo face</span></span></div>
+    <div id="exBox" class="ex">${exampleHTML("skin")}</div>
+    <div class="scroll-x">${EXAMPLES.map(([k, l], i) => `<button class="chip sm ${i === 0 ? "on" : ""}" data-act="exSel" data-v="${k}">${l}</button>`).join("")}</div>
+    <p class="small center" style="margin-top:-6px">Example results. Yours depend on your photo and the light.</p>
     <div class="feat">${GLOW_FEATURES.map(([ic, name], i) => `<div class="feat-i"><span class="tbub sm" style="--tc:${TINT[i % TINT.length]}">${ico(ic, 24)}</span><span>${name}</span></div>`).join("")}</div>
     <div class="how">${HOW.map(([ic, t, s], i) => `<div class="how-i"><span class="how-n">${ico(ic, 22)}</span><span><b>${t}</b><small>${s}</small></span></div>`).join("")}</div>
     <div class="trust">${ico("shield", 22)}<p class="small">Your photo goes to an AI editor only when you tap Show me, and only with your OK. We don't store it. Face care, not medical advice.</p></div>

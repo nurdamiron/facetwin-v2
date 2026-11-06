@@ -42,7 +42,7 @@ Chained example (assumptions to test, not benchmarks): landing -> upload 35%, up
 
 ## 4. Next, in order of expected impact
 
-1. **Real before/after in the hero** (app landing and Framer). The owner has photos with consent; the demo face has no proof on it. Blocked on the photos and on a real Gemini run.
+1. **Before/after in the hero** (app landing): shipped with five owner-supplied pairs in `assets/examples/` (skin, under-eyes, smile, freckles, glow), labelled "Example results" and not as customers. **Open question for the owner:** the files look like generated portraits (same grey backdrop, same black T-shirt, 1024x1536 PNG). If they are generated, keep the label "Example results" and never call them customers or real users; if they are real people, keep the written consent on file. Still blocked: a real Gemini run on real selfies, so the examples show what the product really does.
 2. **Real Gemini run.** If the result is not visibly better but still the same person, none of the funnel matters.
 3. **Consent step.** The AI consent modal appears right after "Show me" with an unticked box. Option: an inline consent line next to the button instead of a modal. Legal wording must be confirmed first, so it was not changed.
 4. **Default plan test.** Quarterly is pre-selected ("Best value"). Test monthly vs quarterly as the default once there is traffic (about 100 paywall views per variant before reading anything).
