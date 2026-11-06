@@ -899,8 +899,8 @@ R.preview = {
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
       ${shown ? `<div class="col" style="gap:12px">
           <button class="cta inline" data-act="prevSave">${ico(S.flags.glow ? (isPaid() ? "download" : "lock") : "download", 22)} ${S.flags.glow ? "Download in HD" : "Save photo"}</button>
-          <div class="wrap" style="justify-content:center">
-            <button class="chip sm" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 16)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` <span class="pro-tag">Looks</span>` : ""}</button>
+          <div class="acts3">
+            <button class="chip sm" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 16)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` ${ico("lock", 13)}` : ""}</button>
             <button class="chip sm" data-act="stackOn">${ico("plus", 16)} Add a change</button>
             <button class="chip sm" data-act="prevAgain">${ico("refresh", 16)} Try again</button></div></div>` : ""}
       <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${S.flags.glow && !GLOW_GROUPS.includes(g) && !hasLooks() ? ico("lock", 13) + " " : ""}${g}</button>`).join("")}</div>
