@@ -58,7 +58,11 @@ export default async function handler(req, res) {
       method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) return res.status(502).json({ error: `AI service error ${r.status}. Try again.` });
+    if (!r.ok) {
+      const e = (data && data.error) || {}; console.error("[ai] gemini", r.status, e.status || e.code || "", String(e.message || "").slice(0, 200)); // reason goes to the Vercel log only
+      const hint = r.status === 400 && /API key/i.test(e.message || "") ? "The AI key is not valid." : r.status === 403 ? "The AI key isn't allowed to use this model." : r.status === 429 ? "The AI is busy or out of quota. Try again in a minute." : "";
+      return res.status(502).json({ error: hint ? `${hint} (AI error ${r.status})` : `AI service error ${r.status}. Try again.` });
+    }
     for (const cand of data.candidates || []) {
       for (const part of (cand.content && cand.content.parts) || []) {
         const inline = part.inlineData || part.inline_data;
