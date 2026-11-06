@@ -1510,14 +1510,14 @@ R.step = {
       <div class="top">${backBtn("today")}${bar(idx + 1, steps.length)}</div>
       <div class="top"><span class="small" style="font-weight:800">Step ${idx + 1} of ${steps.length} · ${s.when === "am" ? "Morning" : "Evening"}</span>${s.focus ? `<span class="pill chip" style="font-size:12px;padding:7px 11px">${s.focus}</span>` : ""}</div>
       <h1 class="h1 xl">${s.name}</h1>
-      <div class="photo" style="height:300px;background:${s.color};display:flex;align-items:flex-end;justify-content:center">${faceArt({ w: 220, h: 264, hair: "bob" })}</div>
+      <div class="photo" style="height:300px;background:${s.color};display:flex;align-items:flex-end;justify-content:center"><img src="assets/routine/${esc(s.id)}.jpg" alt="${esc(s.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.remove()"></div>
       <div class="card" style="flex-direction:row;align-items:center;gap:14px">
         <button id="tbtn" data-act="timer" style="width:66px;height:66px;border-radius:50%;border:0;cursor:pointer;background:conic-gradient(var(--p) 0 0%,var(--line) 0% 100%);display:flex;align-items:center;justify-content:center;flex:none"><span id="tval" style="width:54px;height:54px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">▶ ${fmt(ui.stepSecs)}</span></button>
         <span style="font-size:14px;font-weight:700;line-height:1.45">${s.how}</span></div>
       ${SHELF[s.id] ? (() => { const p = pickFor(s.id); return `<button class="row" data-go="shelf"><span><b>${S.shelf.own[s.id] ? "Using what you have ✓" : esc(p.name)}</b><small>${S.shelf.own[s.id] ? SHELF[s.id].what : `${SHELF[s.id].what} · ≈ $${p.price}`}</small></span><span class="r" style="color:var(--pl)">My shelf ›</span></button>`; })() : ""}
       <button class="cta" data-act="stepDone" data-v="${s.id}">Done · next step</button></div>`;
   },
-  mount: () => { ui.timer = null; ui.left = ui.stepSecs; cleanup.push(() => clearInterval(ui.timer)); },
+  mount: (id) => { ui.timer = null; ui.left = ui.stepSecs; cleanup.push(() => clearInterval(ui.timer)); const st = todaySteps().filter((q) => !q.locked), nx = st[st.findIndex((q) => q.id === id) + 1]; if (nx) new Image().src = `assets/routine/${nx.id}.jpg`; }, // the next step's photo loads while she does this one
 };
 const fmt = (s) => `${Math.floor(s / 60)}:${pad(s % 60)}`;
 ACT.timer = () => {

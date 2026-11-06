@@ -4,7 +4,7 @@ self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  const heavy = /\/(vendor|models)\//.test(url.pathname) || url.hostname === "storage.googleapis.com";
+  const heavy = /\/(vendor|models|assets\/routine)\//.test(url.pathname) || url.hostname === "storage.googleapis.com";
   if (e.request.method !== "GET" || !heavy) return; // app files always fresh from the network
   e.respondWith(caches.open(CACHE).then(async (c) => {
     const hit = await c.match(e.request);
