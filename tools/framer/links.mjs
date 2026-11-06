@@ -4,7 +4,7 @@
 // Buttons in master components (header, footer) cannot be changed through the API: fix those by hand in Framer.
 import { connect } from "framer-api";
 const DRY = process.env.DRY === "1";
-const FUNNEL_URL = process.env.APP_URL || "https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing";
+const FUNNEL_URL = process.env.APP_URL || "https://facetwin-demo.vercel.app/";
 const LINK_KEY = "d2Byl4yc3", LABEL_KEY = "VKblOlE_u"; // the template Button's "link" and "label" controls (same ids as apply.mjs)
 const CTA = /upload|selfie|try|start|get |free|retouch|begin|app|download|see it|show me/i;
 const norm = (s) => String(s).replace(/\s+/g, " ").trim();

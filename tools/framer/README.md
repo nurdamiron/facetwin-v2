@@ -38,3 +38,7 @@ Gotchas are in `docs/LANDING.md` section 3. Masters can NOT be edited with the n
 | `icons-component.mjs` | edits the master "Problem card" (image variable, chip, icon frame) with `framer.agent.applyChanges` |
 | `icons-set.mjs` | sets `$control__iconImage` on the nine instances and reads it back |
 | `agent-dsl.txt` | the agent DSL reference printed by `framer.agent.getSystemPrompt()` |
+
+## Link audit (6 Nov)
+
+Every link in the project, including the masters (Navbar, Footer, Footer 2, CTA, cards), is reachable with `framer.agent.serialize`. `link-audit-dump.mjs` + `link-audit-report.mjs` list them, `link-fix-example.mjs` shows the fix. Rules now in the project: every button, logo and "Try it free" opens exactly `https://facetwin-demo.vercel.app/` (the custom code adds `utm_source=framer`, `utm_medium=landing`, the ad's params and `from=lp` at click time); Privacy and Terms open `/privacy.html` and `/terms.html` on the same domain; menu items jump to the page anchors `home`, `how-it-works`, `pricing`, `faq`, `privacy`; mail is `hello@facetwin.app`. Footer 2: template items About / Careers / Journal became How it works / Pricing / FAQ, the Instagram / LinkedIn / Threads items were deleted (no such accounts). A rich-text node: `SET <id> text=...` resets its formatting and link, so set the attributes again afterwards.

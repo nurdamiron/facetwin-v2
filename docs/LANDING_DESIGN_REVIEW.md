@@ -122,7 +122,7 @@ Automated with `tools/framer/mobile-audit.cjs`, then every screen checked by eye
 | M14 | "Made in Framer" badge overlaps the hero word and Step 3 | paid Framer plan |
 
 ### Funnel links (done 6 Nov)
-All page buttons now go to `https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing` (15 places across Desktop / Tablet / Phone; script `tools/framer/links.mjs`). The mailto links are `hello@facetwin.app`. The UTM / `fbclid` passthrough script matches links with `utm_source=framer`, so it keeps working.
+All buttons, logos and footer links now go to the plain `https://facetwin-demo.vercel.app/` (41 places, masters included; see `tools/framer/README.md`, Link audit). The UTM parameters are added at click time by the custom code. Published and checked on the live page: 45 links, none left on `./`, preview URLs, the template or foreign accounts. The mailto links are `hello@facetwin.app`. The UTM / `fbclid` passthrough script matches links with `utm_source=framer`, so it keeps working.
 
 **Production check on 6 Nov:** `https://facetwin-demo.vercel.app/api/status` returned `ai: false, payments: false, upsells: false`. The funnel loads, but **GEMINI_API_KEY and the Stripe variables are not set on that deployment**: edits and payment cannot work until they are.
 
