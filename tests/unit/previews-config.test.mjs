@@ -46,7 +46,7 @@ test("free text is cleaned and capped, and can't smuggle braces or new lines int
 });
 
 test("PROMPTS.md contains exactly the prompts the app sends", () => {
-  const md = fs.readFileSync(new URL("../../PROMPTS.md", import.meta.url), "utf8");
+  const md = fs.readFileSync(new URL("../../PROMPTS.md", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // Windows checkouts use CRLF
   assert.equal(md, render(md), "PROMPTS.md is out of date: run node scripts/gen-prompts.mjs");
 });
 

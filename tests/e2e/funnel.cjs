@@ -37,7 +37,7 @@ async function payGlow(p, plan) {
   await p.click('[data-act="prevGroup"][data-v="Hair color"]'); await p.click('[data-act="prevGen"]'); await p.waitForTimeout(500);
   ok(/part of Looks/.test(await p.innerText("body")), "hair look is gated: 'part of Looks'");
   await p.keyboard.press("Escape");
-  await p.click('.cta[data-go="paywall"]'); await p.waitForSelector('[data-act="checkout"]');
+  await p.click('.ghost[data-go="paywall"]'); await p.waitForSelector('[data-act="checkout"]');
   t = await txt(p);
   ok(/\$9\.99/.test(t) && /\$22\.49/.test(t) && /\$19\.99 a month/.test(t) && /\$44\.99 every 3 months/.test(t), "paywall: Glow $9.99→$19.99 monthly and $22.49→$44.99 quarterly");
   ok(!/Pro/.test(t) && !/\$49\.99|\$99\.99|\$7\.99|\$15\.99/.test(t), "no old Pro / annual prices left");

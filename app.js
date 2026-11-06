@@ -198,7 +198,10 @@ function render() {
   let r = R[name];
   if (!r) { name = "landing"; r = R.landing; }
   if (r.needs && !S.photos.front) { name = "landing"; r = R.landing; }
-  if (r.app && !S.startedAt && !(r.glowOk && S.flags.glow)) { name = "paywall"; r = R.paywall; }
+  if (r.app && !S.startedAt && !(r.glowOk && S.flags.glow)) {
+    if (S.flags.glow && isPaid()) { go(S.owned.coach ? "goal" : "up/coach"); return; } // Glow subscriber: Coach offer / onboarding, not the Glow paywall again
+    name = "paywall"; r = R.paywall;
+  }
   app.innerHTML = r.view(arg) + (r.tab && S.startedAt ? tabbar(r.tab) : "") + (testerOn() ? `<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);background:var(--yel);color:var(--ink);font-size:11px;font-weight:800;padding:3px 10px;border-radius:0 0 10px 10px;z-index:40">TESTER MODE · all unlocked</div>` : "");
   window.scrollTo(0, 0);
   track("Screen", { screen: name });
@@ -858,6 +861,12 @@ R.preview = {
             ${ui.busy ? `<div style="position:absolute;inset:0;background:rgba(14,14,20,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px"><div class="spin"></div><b id="busyMsg">Creating your look…</b><span class="small">Usually 5–15 seconds</span></div>` : ""}</div>`}
       ${shown && !ui.prev3d ? `<p class="small center">Drag the line to compare · AI preview, a simulation of the change</p>` : ""}
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
+      ${shown ? `<div class="col" style="gap:12px">
+          <button class="cta inline" data-act="prevSave">${ico(S.flags.glow ? (isPaid() ? "download" : "lock") : "download", 22)} ${S.flags.glow ? "Download in HD" : "Save photo"}</button>
+          <div class="wrap" style="justify-content:center">
+            <button class="chip sm" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 16)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` <span class="pro-tag">Looks</span>` : ""}</button>
+            <button class="chip sm" data-act="stackOn">${ico("plus", 16)} Add a change</button>
+            <button class="chip sm" data-act="prevAgain">${ico("refresh", 16)} Try again</button></div></div>` : ""}
       <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${S.flags.glow && !GLOW_GROUPS.includes(g) && !hasLooks() ? ico("lock", 13) + " " : ""}${g}</button>`).join("")}</div>
       ${group === "Your idea" ? `<div class="card" style="gap:8px"><b>Describe any change to your face or hair</b>
           <textarea id="ctext" rows="2" maxlength="200" placeholder="e.g. a short curly fade and a thin mustache" style="width:100%;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--text);padding:12px;font:inherit;font-weight:700;resize:none">${esc(ui.ctext || "")}</textarea>
@@ -865,10 +874,9 @@ R.preview = {
         : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
       ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add your Gemini API key (README → Realistic previews), then restart." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
           ${S.startedAt ? `<button class="link" style="text-align:left;color:var(--ink);text-decoration:underline" data-go="studio">Use the instant drawn try-on meanwhile</button>` : ""}</div>` : ""}
-      ${shown ? `<div class="grid2"><button class="ghost" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 20)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` <span class="pro-tag">Looks</span>` : ""}</button><button class="ghost" data-act="stackOn">${ico("plus", 20)} Add a change</button></div>
-          <div class="grid2"><button class="ghost" data-act="prevAgain">${ico("refresh", 20)} Try again</button><button class="ghost" data-act="prevSave">${ico(S.flags.glow && !isPaid() ? "lock" : "download", 20)} ${S.flags.glow ? "Download HD" : "Save photo"}</button></div>`
-        : `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>`}
-      ${!S.startedAt && S.previews.length ? (S.flags.glow ? (isPaid() ? `<button class="cta" data-act="prevSave">${ico("download", 22)} Download in HD</button>` : `<button class="cta" data-go="paywall">${ico("lock", 22)} Download in HD</button>`) : `<button class="cta" data-act="twinNext">Save my looks + start</button>`) : ""}
+      ${!shown ? `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>` : ""}
+      ${!S.startedAt && S.previews.length && !S.flags.glow ? `<button class="cta" data-act="twinNext">Save my looks + start</button>` : ""}
+      ${!shown && !S.startedAt && S.previews.length && S.flags.glow ? (isPaid() ? `<button class="ghost" data-act="prevSave">${ico("download", 20)} Download in HD</button>` : `<button class="ghost" data-go="paywall">${ico("lock", 20)} Download in HD</button>`) : ""}
       ${S.previews.length ? `<div class="top"><b style="font-size:15px">Your looks</b><span class="small">${S.previews.length}</span></div>
         <div class="scroll-x">${S.previews.map((q) => `<button data-act="prevShow" data-v="${esc(q.id)}" style="border:0;padding:0;background:none;cursor:pointer;width:84px;height:110px;border-radius:16px;overflow:hidden;flex:none;${shown && q.id === shown.id ? "outline:3px solid var(--p);outline-offset:-3px" : ""}"><img src="${q.img}" alt="${esc(entryName(q))}" style="width:100%;height:100%;object-fit:cover"></button>`).join("")}</div>` : ""}
       ${S.startedAt ? `<button class="link" data-go="studio">Instant drawn try-on (hair colors, brows)</button>` : ""}
