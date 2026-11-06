@@ -48,7 +48,7 @@ export const CONFIG = {
   AFFILIATE_TAG: "",
 
   // Link printed on share cards.
-  SHARE_URL: "facetwin.app",
+  SHARE_URL: "facetwin-demo.vercel.app",
   SUPPORT_EMAIL: "hello@facetwin.app",
 
   // On-device AI models. The face model ships inside /models. The hair model is loaded from
