@@ -21,7 +21,7 @@ async function gen(p) {
   await p.waitForSelector(".cmp", { timeout: 40000 });
 }
 async function payGlow(p, plan) {
-  await p.click('[data-act="prevSave"]'); await p.click('.sheet-bg [data-act="seePlans"]');
+  await p.click('[data-act="prevSave"]'); await p.waitForURL(/#\/paywall/);
   await p.waitForSelector('[data-act="checkout"]');
   await p.click(`[data-act="choose"][data-v="${plan}"]`); await p.check("#renewOk"); await p.click('[data-act="checkout"]');
   await p.waitForURL(/#\/up\/looks/, { timeout: 15000 }); await p.waitForTimeout(500);

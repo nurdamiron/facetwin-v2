@@ -239,7 +239,8 @@ R.landing = {
       <p class="sub">Natural retouch that still looks like you. Real skin texture, no filter look. See the before and after in seconds.</p>
     </div>
     <label class="cta inline" style="cursor:pointer;text-align:center">${ico("camera", 24)} Upload a selfie<input type="file" accept="image/*" hidden id="glowUpl"></label>
-    <button class="ghost" data-act="glowDemo">${ico("sparkles", 20)} Try it with a demo face</button>
+    <p class="small center" style="margin-top:-6px">${ico("shield", 14)} 2 free edits · no sign-up · your photo stays in this browser until you tap Show me</p>
+    <button class="link p" data-act="glowDemo" style="margin-top:-6px">No selfie handy? Try a demo face</button>
     <div class="photo hero-photo"><img src="assets/demo/glow.jpg" alt="Demo face"><span class="tl"><span class="pill dark">${ico("sparkles", 14)} Demo face</span></span></div>
     <div class="feat">${GLOW_FEATURES.map(([ic, name], i) => `<div class="feat-i"><span class="tbub sm" style="--tc:${TINT[i % TINT.length]}">${ico(ic, 24)}</span><span>${name}</span></div>`).join("")}</div>
     <div class="how">${HOW.map(([ic, t, s], i) => `<div class="how-i"><span class="how-n">${ico(ic, 22)}</span><span><b>${t}</b><small>${s}</small></span></div>`).join("")}</div>
@@ -955,6 +956,7 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
     S.previews.forEach((q, i) => { if (i >= 4) delete q.hd; }); // keep HD files for the latest 4 only (browser storage is small)
     if (!isPaid()) S.previewsUsed++;
     save(); track("PreviewGenerated", { preview: id, stacked: !!base, mock: !!j.mock });
+    trackOnce("ViewContent", { content_name: "first_result", content_category: S.flags.glow ? "glow" : "looks" }); // the standard Meta event for "saw her result", to optimise ads on
     ui.prevKey = key; ui.base = null; ui.prev3d = S.flags.glow ? false : HAS3D; // V1 flow shows the new look on the 3D twin first
   } catch (e) {
     track("PreviewFailed", { preview: id }); toast(String(e.message || e).slice(0, 160));
@@ -962,7 +964,9 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
 };
 ACT.prevSave = async () => {
   const q = ui.prevKey ? previewOf(ui.prevKey) : previewOf(changeKey(ui.prevSel)); if (!q) return;
-  if (S.flags.glow && !isPaid()) return upsell("Download in HD with Glow"); // V2: saving the file is behind the paywall
+  if (S.flags.glow && !isPaid()) { // V2: saving the file is behind the paywall; straight to the plans, no extra sheet
+    track("HDTapped", { preview: q.id }); S.flags.upFlow = 0; if (!CONFIG.PLANS_GLOW.some((x) => x.id === S.chosen)) S.chosen = "glow_q"; save(); return go("paywall");
+  }
   const blob = await (await fetch(q.hd || q.img)).blob();
   download(blob, `facetwin-${q.id.replace(/[^a-z0-9+-]/gi, "")}.jpg`); track("PreviewSaved", { preview: q.id });
 };
@@ -1066,6 +1070,7 @@ const renewText = (pl) => pl.period === "month"
   : pl.period === "quarter"
   ? `Today $${pl.price.toFixed(2)}. From month 4: $${pl.then.toFixed(2)} every 3 months until you cancel. We remind you 3 days before.`
   : `Today $${pl.price.toFixed(2)}. Renews at $${pl.then.toFixed(2)} a year until you cancel. We remind you 3 days before.`;
+const payLabel = (p) => `${ico("lock", 22)} Pay $${p.price.toFixed(2)} · secure checkout`;
 function glowPaywall() {
   if (!CONFIG.PLANS_GLOW.some((p) => p.id === S.chosen)) { S.chosen = "glow_q"; save(); }
   const last = S.previews[0], p = planById(S.chosen);
@@ -1074,17 +1079,20 @@ function glowPaywall() {
     ["Add-ons", "var(--lilac)", CONFIG.UPSELLS.map((u) => [u.icon, `${u.name}: $${u.price.toFixed(2)} once, after checkout`])],
   ];
   const plan = (q) => `<button class="plan ${S.chosen === q.id ? "on" : ""}" data-act="choose" data-v="${q.id}">${q.popular ? `<span class="badge">Best value</span>` : ""}<span><b>${q.name}</b><small>${q.note}</small></span><span class="price">$${q.price.toFixed(2)}</span></button>`;
+  const ba = last ? `<div class="ba"><div class="photo"><img src="${S.photos.front}" alt="Before"><span class="tl"><span class="pill dark">Before</span></span></div><div class="photo"><img src="${last.img}" alt="Your edit"><span class="tl"><span class="pill">${ico(entryIcon(last), 14)} ${esc(entryName(last))}</span></span></div></div>` : "";
   return `<div class="scr" style="gap:12px">
-    <div class="top">${backBtn("preview")}<span class="pill" style="background:var(--pink);color:var(--ink)">${ico("download", 14)} HD, no limits</span></div>
-    ${last ? `<div class="photo" style="height:170px;border-radius:24px"><img src="${last.img}" alt="Your edit"><span class="tl"><span class="pill dark">${ico(entryIcon(last), 16)} ${esc(entryName(last))}</span></span></div>` : ""}
-    <h1 class="h1" style="font-size:30px">Download in HD. <span class="hl">Keep editing.</span></h1>
+    <div class="top">${backBtn("preview")}<span class="pill" style="background:var(--pink);color:var(--ink)">${ico("download", 14)} HD, no watermark</span></div>
+    ${ba}
+    <h1 class="h1" style="font-size:30px">Your edit is ready. <span class="hl">Get it in HD.</span></h1>
+    <div class="col">${CONFIG.PLANS_GLOW.map(plan).join("")}</div>
     <div class="grid2">${perks.map(([tier, bg, items]) => `<div class="card perk"><span class="pill" style="background:${bg};color:var(--ink);align-self:flex-start">${tier}</span>${items.map(([ic, t]) => `<div class="perk-i">${ico(ic, 20)}<span>${t}</span></div>`).join("")}</div>`).join("")}</div>
-    <div class="col"><span class="small tiers">Glow</span>${CONFIG.PLANS_GLOW.map(plan).join("")}</div>
-    <p class="small center" id="renewLine" style="font-size:12px;font-weight:800">${renewText(p)}</p>
-    <label class="row" style="cursor:pointer"><input type="checkbox" id="renewOk" style="width:22px;height:22px;flex:none"><span><b>I agree to the renewal terms above</b><small>Cancel anytime in Settings, in 2 taps.</small></span></label>
-    <button class="cta" data-act="checkout">${ico("lock", 22)} Continue to secure checkout</button>
-    <button class="link" data-act="notNow">Not now</button>
-    <p class="small center" style="font-size:11px">Payments by Stripe. <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · Face care and photo editing, not medical advice.</p></div>`;
+    <p class="small center" style="font-size:11px">Payments by Stripe. <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · Face care and photo editing, not medical advice.</p>
+    <div class="dock pay">
+      <p class="small center" id="renewLine" style="font-size:12px;font-weight:800;color:var(--text)">${renewText(p)}</p>
+      <label class="row" style="cursor:pointer;padding:12px 14px"><input type="checkbox" id="renewOk" style="width:22px;height:22px;flex:none"><span><b style="font-size:14px">I agree to the renewal terms above</b><small>Cancel anytime in Settings, in 2 taps.</small></span></label>
+      <button class="cta inline" data-act="checkout">${payLabel(p)}</button>
+      <button class="link" data-act="notNow">Not now</button>
+    </div></div>`;
 }
 R.paywall = {
   needs: true,
@@ -1111,12 +1119,14 @@ R.paywall = {
   },
   mount: async (variant) => {
     trackOnce(variant === "day7" ? "Day7PaywallView" : "PaywallView");
+    if (S.flags.glow) track("PaywallShown", { plan: S.chosen, previews: S.previews.length });
     const c = $("#pc"); if (c) await drawPhoto(c, "front", S.applied);
   },
 };
 ACT.choose = (v) => {
   S.chosen = v; save(); $$(".plan").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   const line = $("#renewLine"); if (line) line.textContent = renewText(planById(v));
+  const pay = $('.dock.pay [data-act="checkout"]'); if (pay && S.flags.glow) pay.innerHTML = payLabel(planById(v));
 };
 const STRIPE_PLANS = ["glow_m", "glow_q"]; // the plans that exist as Stripe prices
 ACT.checkout = async (_v, el) => {

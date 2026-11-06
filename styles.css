@@ -189,3 +189,9 @@ code { background: rgba(0,0,0,.1); padding: 1px 5px; border-radius: 6px; }
 .row .grow { flex: 1; text-align: left; }
 .plan-card { background: var(--p); color: #fff; }
 .eyebrow-w { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+
+.ba { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ba .photo { aspect-ratio: 4 / 5; border-radius: 22px; }
+.ba .photo img { object-position: 50% 22%; }
+.dock.pay { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: -24px; }
+.dock.pay .link { padding: 2px; }
