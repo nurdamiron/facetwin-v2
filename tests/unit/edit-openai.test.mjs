@@ -30,6 +30,21 @@ test("OpenAI: sends the photo as a multipart file with the server-built prompt a
   });
 });
 
+test("OpenAI: two 400s in a row (invalid_value) end with a minimal request: model, prompt, image only", async () => {
+  await withEnv({ OPENAI_API_KEY: "sk-test" }, async () => {
+    const h = await fresh("../../api/edit.js");
+    let n = 0;
+    await withFetch(() => (++n < 3 ? { status: 400, json: { error: { code: "invalid_value", message: "Invalid value" } } } : OPENAI_OK), async (calls) => {
+      const res = await run(h, post({ image: IMG, id: "onetap" }));
+      assert.equal(res.statusCode, 200);
+      assert.equal(calls.length, 3);
+      assert.equal(calls[2].body.get("size"), null);
+      assert.equal(calls[2].body.get("quality"), null);
+      assert.ok(calls[2].body.get("image") && calls[2].body.get("prompt") && calls[2].body.get("model"));
+    });
+  });
+});
+
 test("OpenAI: a 400 on the optional parameters is retried once without them", async () => {
   await withEnv({ OPENAI_API_KEY: "sk-test" }, async () => {
     const h = await fresh("../../api/edit.js");
