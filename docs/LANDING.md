@@ -30,7 +30,7 @@ The landing never takes payment. Payment happens after she has seen her own resu
 
 | What | Link |
 |---|---|
-| Landing (Framer, free `.framer.app` URL) | https://shiny-culture-616454.framer.app/ |
+| Landing (Framer, published production URL since 6 Nov) | https://facetwin.framer.website/ (the older https://shiny-culture-616454.framer.app/ also exists) |
 | App (Vercel branch preview, used by the landing buttons) | https://facetwin-git-claude-trustin-15191a-nurdaulet-akhmatovs-projects.vercel.app/?utm_source=framer&utm_medium=landing |
 | App production domain | **TBD**: replace the buttons' link when known |
 | Framer project | "Sensoria Template // Luna UI (copy)" in the owner's Framer account |
@@ -71,6 +71,14 @@ Built through the Framer Server API (`framer-api`, key per project, WebSocket to
 - hero: on phone the small line "Natural retouch in seconds" touches the big word FACETWIN.
 
 The scripts are in [`tools/framer/`](../tools/framer/README.md). **After any price change run `set-prices.mjs`** so the cards match `config.js`.
+
+### Update 6 Nov: the Framer project moved on
+The owner (or the Framer agent) restructured the project and published it at `facetwin.framer.website`. Findings from reading the **project** (not the published page, which is behind it):
+- Home now has new sections (Problem cards, Bento / Benefit cards, "How it works", "CTA"), pages are `/`, `/page`, `/404`.
+- Fixed through the API: removed the "Custom Plan" block again, `hello@facetwin.com` -> `hello@facetwin.app`, `mailto:contact@sensoria.com` -> `hello@facetwin.app`, the Phone heading "faceswap apps" -> "Why filters feel fake.", and added the UTM / `fbclid` passthrough script (site custom code, body end).
+- **Not fixable through the API (inside master components), must be done in the editor or by the agent:** project name (still "Sensoria Template // Luna UI (copy)"), page title / description / favicon, the CTA block "Download the app" with **App Store and Google Play links (there is no native app)**, footer words (SENSORIA, NEURAL MAPPING, DERMAL ANALYSIS, "Created by Liana Tudakova", Threads / Instagram / LinkedIn of another person, lunaui.co, hello@sensoria.com, "© 2026 Sensoria"), image alt texts "Sensoria Hero" / "Sensoria visual".
+- `/page` is a stray page with face swap / API wording ("Multi Face Swap", "Integrate face swap into your app with our simple API"). It is linked from a master component, so it was not hidden. Decide: relink, then delete or set to draft.
+- The published site is older than the project. **Nothing was published in this step**; the owner presses Publish after checking.
 
 ### What the Server API can and cannot do (so nobody repeats the research)
 - Can: read and write text on the page, set controls of component instances (tags, numbers, buttons, links, FAQ items, pricing cards), create / remove / move nodes (`setParent`), publish.
