@@ -126,9 +126,9 @@ All page buttons now go to `https://facetwin-demo.vercel.app/?utm_source=framer&
 
 **Production check on 6 Nov:** `https://facetwin-demo.vercel.app/api/status` returned `ai: false, payments: false, upsells: false`. The funnel loads, but **GEMINI_API_KEY and the Stripe variables are not set on that deployment**: edits and payment cannot work until they are.
 
-## 8. Highlights ticker ("Selfie touch-up highlights"): words and icons
+## 8. Highlights ticker ("Selfie touch-up highlights"): words and icons (done in Framer, 6 Nov)
 
-The ticker has 9 cards (`Problem card 1-9`). Words (done, `tools/framer/cards.mjs`) match what the app really does. Icons: all nine cards share one sparkle symbol, which sits inside the card's master component and cannot be changed through the API. The Hugeicons Free SVGs (the same family as in the app) are in `assets/landing-icons/`.
+The ticker has 9 cards (`Problem card 1-9`). Words: `tools/framer/cards.mjs`. Icons: the nine Hugeicons Free SVGs from `assets/landing-icons/` are applied. The master component "Problem card" got an image variable "Icon Image" and a 44 px round chip (`#1E1B2E`) with a 24 px icon bound to it; the old fixed sparkle was removed. Each instance has its own icon in `$control__iconImage`. This was done through `framer.agent.applyChanges` (see `tools/framer/README.md`, "Icons and the agent API"), not by hand. Scripts: `icons-upload.mjs` (SVG to Framer assets), `icons-component.mjs` (edit the master), `icons-set.mjs` (set the nine instances).
 
 | Card | Words | Icon file (Hugeicons) |
 |---|---|---|
@@ -142,15 +142,4 @@ The ticker has 9 cards (`Problem card 1-9`). Words (done, `tools/framer/cards.mj
 | 8 | Same expression | `08-smile.svg` |
 | 9 | Still you | `09-face.svg` |
 
-Prompt for the Framer agent (first drag the nine files from `assets/landing-icons/` into Framer's Assets):
-
-```
-Fix the "Selfie touch-up highlights" ticker. Do not change any copy.
-
-The component "Problem card" has one fixed icon ("Touch-up symbol"), so all nine cards look the same. Add an image variable "Icon" to "Problem card" and use it instead of the fixed symbol: 24 px icon, accent color #7C4DFF, on a 40 px round chip with fill #1E1B2E.
-
-Then set the Icon of each card from the SVG files I added to Assets (they are numbered 01 to 09 and match the card order):
-Problem card 1 Clearer skin = 01-clearskin, 2 Fresher eyes = 02-undereye, 3 Brighter smile = 03-teeth, 4 Freckles on or off = 04-frecklesOn, 5 Healthy glow = 05-glow, 6 Clean backgrounds = 06-image, 7 Softer lines = 07-wrinkles, 8 Same expression = 08-smile, 9 Still you = 09-face.
-
-Make the pagination dots #7C4DFF when active (they are orange now) and #3A3A46 when inactive. Hide the "Slide X of Y" counter text on Phone. Check the ticker on Phone (390), Tablet and Desktop.
-```
+Still open for the ticker: pagination dots are orange (should be `#7C4DFF` active, `#3A3A46` inactive), hide the "Slide X of Y" counter on Phone. The unused leftover variable "Icon" in the component can be deleted. **Nothing is published until someone presses Publish** (or runs `tools/framer/pub.mjs`).

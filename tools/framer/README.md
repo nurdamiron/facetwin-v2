@@ -27,4 +27,13 @@ export FRAMER_PROJECT=https://framer.com/projects/<your project>   # optional, d
 | `pub.mjs` | `publish()`: **goes live immediately** at the project's `.framer.app` URL | yes, use deliberately |
 | `pricing.mjs`, `logo.mjs` | one-off replacements of the Pricing Table and the logo in one card (they target node ids that no longer exist) | no, kept as examples of the detach -> edit -> `setParent` -> remove technique |
 
-Gotchas are in `docs/LANDING.md` section 3: masters cannot be edited through the API, the detached insert leaves a stray copy at the root of each breakpoint, and breakpoint nodes are mirrored.
+Gotchas are in `docs/LANDING.md` section 3. Masters can NOT be edited with the normal node API, but they CAN with the agent API (`framer.agent.applyChanges`, DSL in `agent-dsl.txt`; see `icons-component.mjs`). Also: the detached insert leaves a stray copy at the root of each breakpoint, and breakpoint nodes are mirrored.
+
+## Icons and the agent API
+
+| Script | What it does |
+|---|---|
+| `icons-upload.mjs` | uploads `assets/landing-icons/*.svg` to Framer, writes `icon-urls.json` |
+| `icons-component.mjs` | edits the master "Problem card" (image variable, chip, icon frame) with `framer.agent.applyChanges` |
+| `icons-set.mjs` | sets `$control__iconImage` on the nine instances and reads it back |
+| `agent-dsl.txt` | the agent DSL reference printed by `framer.agent.getSystemPrompt()` |
