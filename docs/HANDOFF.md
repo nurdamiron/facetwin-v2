@@ -39,7 +39,7 @@ Playwright and Chromium are preinstalled in the Claude cloud sandbox. The dev se
 Found and fixed: **`selfieView` was never defined**, so the camera screen and the weekly re-scan (Coach) crashed from the first commit. Restored in `app.js`; camera e2e passes.
 
 Still to do in the audit, in this order:
-1. **Design: make the whole app look like the landing ("startup design").** The owner's message was cut off after "like on our landing, on ..." (probably "on every screen / on the phone"). Ask one short question to confirm, then screenshot every app screen at 390 px (landing, editor, results, paywall, add-on offers, account, Coach screens, camera) and align: dark `#0E0E14`, purple `#7C4DFF`, Bricolage Grotesque + Manrope, big confident headings, generous spacing, one primary button per screen, no emoji (icons from `icons.js`).
+1. **Design: make the whole app look like the landing ("startup design").** The owner's message was cut off after "like on our landing, on ..." (probably "on every screen / on the phone"). Ask one short question to confirm, then screenshot every app screen at 390 px (landing, editor, results, paywall, add-on offers, account, Coach screens, camera) and align: dark `#0E0E14`, purple `#7C4DFF`, Instrument Serif + Inter Display, big confident headings, generous spacing, one primary button per screen, no emoji (icons from `icons.js`).
 2. Re-scan flow end to end (Coach): `#/scan` -> upload or camera -> `scanresult` (not yet tested after the fix).
 3. Storage stress: 12 edits with large images; `save()` quota handling; what the user sees when storage is full.
 4. Bad input: unreadable photo (HEIC on Chrome), 20 MP photo, no face, two faces. `bindGlowUpload` has no try/catch around `fileToDataURL`.

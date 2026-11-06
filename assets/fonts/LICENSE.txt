@@ -1,2 +1,4 @@
-Fonts in this folder: Bricolage Grotesque and Manrope, latin subsets (woff2) from Google Fonts.
+Fonts in this folder, latin subsets (woff2), from Google Fonts:
+- Instrument Serif (Regular and Italic) by Rodrigo Fuenzalida and Jordan Egstad
+- Inter (variable, with the optical-size axis: "Inter Display" is Inter at opsz 32) by Rasmus Andersson
 Both are licensed under the SIL Open Font License 1.1 (https://openfontlicense.org). Self-hosted so no request goes to a third party when the app opens.

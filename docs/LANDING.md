@@ -118,7 +118,7 @@ This site is the landing page of an ad funnel: ad -> this page -> the app. The o
 
 Voice: calm, direct, premium. Short sentences, plain words. Never use "neural", "dermal", "biometric", "clinically proven", "science-backed", "AI magic" or any medical claim.
 
-Design: keep the dark layout and the section structure. Accent color: replace the pink with purple #7C4DFF. Headings Bricolage Grotesque, body Manrope. Set these in Assets (styles), not on single layers.
+Design: keep the dark layout and the section structure. Accent color: replace the pink with purple #7C4DFF. Headings Instrument Serif, body Inter. Set these in Assets (styles), not on single layers.
 
 Logo: replace "Sensoria" everywhere (header, footer, cards) with the text wordmark "facetwin." in the heading font. No image logo.
 

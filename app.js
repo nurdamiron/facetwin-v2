@@ -124,7 +124,7 @@ const ICON = {
 const backBtn = (to) => `<button class="back" aria-label="Back" ${to ? `data-go="${to}"` : 'data-act="back"'}>${ICON.back}</button>`;
 const bar = (n, total = 6) => `<div class="bar" style="grid-template-columns:repeat(${total},1fr)">${Array.from({ length: total }, (_, i) => `<span class="${i < n ? "on" : ""}"></span>`).join("")}</div>`;
 const topbar = (to, n, total) => `<div class="top">${backBtn(to)}${bar(n, total)}</div>`;
-const wordmark = (size = 24) => `<span style="font-family:var(--h);font-weight:800;font-size:${size}px;letter-spacing:-.02em">facetwin<span style="color:var(--p)">.</span></span>`;
+const wordmark = (size = 24) => `<span style="font-family:var(--h);font-weight:400;font-size:${Math.round(size * 1.3)}px;letter-spacing:-.01em;line-height:1">facetwin<span style="color:var(--p)">.</span></span>`;
 const PASTEL = ["var(--peach)", "var(--lilac)", "var(--blue)", "var(--yel)", "var(--pink)", "var(--mint)"];
 
 function faceArt({ w = 150, h = 180, hair = "long", haircol = "#4A2C20", skin = "#F1CDB3", glasses = null, gcol = "#1A1412", brows = false, lips = "#C2566A" } = {}) {
@@ -773,7 +773,7 @@ function drawAnalysis(canvas, img, lm) {
   for (const [i, label] of [[9, "brow line"], [2, "nose base"], [152, "chin"]]) {
     const [, y] = p(i);
     x.strokeStyle = "rgba(245,243,247,.75)"; x.beginPath(); x.moveTo(p(234)[0] - W * 0.04, y); x.lineTo(p(454)[0] + W * 0.04, y); x.stroke();
-    x.fillStyle = "#F5F3F7"; x.font = `800 ${Math.round(W / 34)}px Manrope, sans-serif`; x.fillText(label, p(454)[0] + W * 0.05, y + W / 90);
+    x.fillStyle = "#F5F3F7"; x.font = `800 ${Math.round(W / 34)}px Inter, sans-serif`; x.fillText(label, p(454)[0] + W * 0.05, y + W / 90);
   }
   x.fillStyle = "#7C4DFF";
   for (let i = 0; i < lm.length; i += 6) { const [a, b] = p(i); x.beginPath(); x.arc(a, b, lw * 1.1, 0, Math.PI * 2); x.fill(); }
@@ -789,7 +789,7 @@ R.twin = {
     const tip = V.SHAPE_TIPS[a.shape] || V.SHAPE_TIPS.Oval, first = suggestions()[0], aiOn = ui.ai?.ok;
     const card = (k, v, sub) => `<div class="card" style="padding:12px;gap:4px;border-radius:20px"><small class="small">${k}</small><b style="font-size:16px">${v}</b>${sub ? `<small class="small">${sub}</small>` : ""}</div>`;
     return `<div class="scr">
-      <div class="top"><h1 class="h1" style="font-size:28px">Hey, it's you</h1><span class="pill">${esc(a.shape || "")} face</span></div>
+      <div class="top"><h1 class="h1" style="font-size:36px">Hey, it's you</h1><span class="pill">${esc(a.shape || "")} face</span></div>
       ${(() => { const is3d = ui.twinView !== "analysis" && HAS3D; return `<div class="photo" id="hero" style="aspect-ratio:3/4;max-height:52vh;${is3d ? "background:radial-gradient(circle at 50% 38%,#2b2440,#0E0E14 72%)" : ""}">
         ${is3d ? `<div id="heroWait" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"><div class="spin"></div><span class="small">Building your 3D twin…</span></div>` : `<canvas id="an"></canvas>`}
         <span class="tl"><span class="pill dark" id="heroLbl">${is3d ? (hasSides() ? "Your 180° twin" : "Your 3D twin") : "478 points mapped"}</span></span>
@@ -866,7 +866,7 @@ R.preview = {
     const shown = ui.prevKey ? previewOf(ui.prevKey) : sel === "custom" ? null : previewOf(changeKey(sel));
     const before = base ? base.img : S.photos.front, ai = ui.ai;
     return `<div class="scr ${S.startedAt ? "tabbed" : ""}">
-      <div class="top">${S.startedAt ? `<span class="h1" style="font-size:28px">${S.flags.glow ? "Retouch" : "Try a new look"}</span>` : `${backBtn(S.flags.glow ? "landing" : "twin")}<span class="h1" style="font-size:24px">${S.flags.glow ? "Retouch" : "Try a new look"}</span>`}
+      <div class="top">${S.startedAt ? `<span class="h1" style="font-size:36px">${S.flags.glow ? "Retouch" : "Try a new look"}</span>` : `${backBtn(S.flags.glow ? "landing" : "twin")}<span class="h1" style="font-size:31px">${S.flags.glow ? "Retouch" : "Try a new look"}</span>`}
         <span class="row-r"><span class="pill ${left === Infinity ? "" : "chip"}">${left === Infinity ? "Unlimited" : `${left} free`}</span>${S.flags.glow ? `<button class="iconbtn" data-go="account" aria-label="Account and plan">${ico("user", 22)}</button>` : ""}</span></div>
       ${shown && ui.prev3d ? `<div class="photo" id="pv3" style="aspect-ratio:3/4;max-height:52vh;background:radial-gradient(circle at 50% 38%,#2b2440,#0E0E14 72%)"><div id="pvWait" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"><div class="spin"></div><span class="small">Putting your new look on your 3D twin…</span></div><span class="tl"><span class="pill dark">${ico(entryIcon(shown), 16)} ${esc(entryName(shown))} · 3D</span></span><span class="bc"><span class="pill" style="background:rgba(245,243,247,.14)">↔ drag to turn</span></span></div>`
         : shown ? compareHTML(S.photos.front, shown.img, "You now", esc(entryName(shown)))
@@ -1003,7 +1003,7 @@ function toggleLook(id) {
 // The photo leaves the device only after this explicit, unticked-by-default consent (privacy.html mirrors it).
 function askAIConsent(next) {
   ui.afterConsent = next;
-  sheet(`<h2 class="h1" style="font-size:24px">One thing before we edit</h2>
+  sheet(`<h2 class="h1" style="font-size:31px">One thing before we edit</h2>
     <p class="sub">To make this edit we send your photo to Google's Gemini AI. We don't keep it on our servers; your photos stay in this browser. You can delete them anytime in Privacy. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
     <label class="row" style="cursor:pointer"><input type="checkbox" id="aiOk" style="width:22px;height:22px;flex:none"><span><b>I agree to send my photo to the AI editor</b><small>This includes processing of my face in the photo. Needed to continue.</small></span></label>
     <button class="cta inline" data-act="aiAgree">Continue</button><button class="link" data-close>Not now</button>`);
@@ -1022,7 +1022,7 @@ function upsell(title, want = "glow") {
     : add ? (buyable ? `${add.name}: ${add.title.toLowerCase()}. One-time $${add.price.toFixed(2)}, no subscription.` : `${add.name} is a one-time add-on to Glow: ${add.title.toLowerCase()}. Start with a Glow plan.`)
     : "Glow: unlimited natural retouch and Studio, saved in HD. Looks and Coach are optional one-time add-ons.";
   sheet(`<span class="tbub" style="--tc:var(--lilac)">${ico(add ? add.icon : "lock", 30)}</span>
-    <h2 class="h1" style="font-size:26px">${esc(title)}</h2>
+    <h2 class="h1" style="font-size:34px">${esc(title)}</h2>
     <p class="sub">${esc(text)}</p>
     <button class="cta inline" data-act="seePlans" data-v="${want}">${buyable ? `See ${add.name}` : "See plans"}</button><button class="link" data-close>Not now</button>`);
 }
@@ -1097,7 +1097,7 @@ function glowPaywall() {
   return `<div class="scr" style="gap:12px">
     <div class="top">${backBtn("preview")}<span class="pill" style="background:var(--pink);color:var(--ink)">${ico("download", 14)} HD, no watermark</span></div>
     ${ba}
-    <h1 class="h1" style="font-size:30px">Your edit is ready. <span class="hl">Get it in HD.</span></h1>
+    <h1 class="h1" style="font-size:39px">Your edit is ready. <span class="hl">Get it in HD.</span></h1>
     <div class="col">${CONFIG.PLANS_GLOW.map(plan).join("")}</div>
     <div class="grid2">${perks.map(([tier, bg, items]) => `<div class="card perk"><span class="pill" style="background:${bg};color:var(--ink);align-self:flex-start">${tier}</span>${items.map(([ic, t]) => `<div class="perk-i">${ico(ic, 20)}<span>${t}</span></div>`).join("")}</div>`).join("")}</div>
     <p class="small center" style="font-size:11px">Payments by Stripe. <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · Face care and photo editing, not medical advice.</p>
@@ -1119,7 +1119,7 @@ R.paywall = {
            <div class="photo" style="height:180px;border-radius:24px"><img src="${last.img}" alt="Today"><span class="tl"><span class="pill">Day ${freeDay()}</span></span></div></div>
          <h1 class="h1">One week in. <span class="hl">Keep it going.</span></h1>`
       : `<div class="top" style="justify-content:flex-start;gap:12px"><div class="photo" style="width:84px;height:104px;border-radius:22px;flex:none"><canvas id="pc"></canvas></div>
-         <h1 class="h1" style="font-size:30px">Keep your twin + <span class="hl">your 12-week plan</span></h1></div>`;
+         <h1 class="h1" style="font-size:39px">Keep your twin + <span class="hl">your 12-week plan</span></h1></div>`;
     return `<div class="scr" style="gap:12px">
       <div class="top">${backBtn(S.startedAt ? "today" : "twin")}<span class="pill" style="background:var(--pink);color:var(--ink)">Plan ready for your ${esc(S.analysis?.shape?.toLowerCase() || "")} face</span></div>
       ${head}
@@ -1362,12 +1362,12 @@ R.today = {
     const scanDue = lastScanDays() >= 7, fo = freeOver();
     return `<div class="scr tabbed">
       <div class="top"><div><div class="small" style="font-weight:700">${isPaid() ? `Week ${week()}` : `Free week · day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`} · ${DOW[d.getDay()]}</div>
-        <div class="h1" style="font-size:30px">${h < 12 ? "Good morning" : h < 18 ? "Hi there" : "Good evening"}</div></div>
+        <div class="h1" style="font-size:39px">${h < 12 ? "Good morning" : h < 18 ? "Hi there" : "Good evening"}</div></div>
         <span class="pill">🔥 ${st} ${st === 1 ? "day" : "days"}</span></div>
       ${fo ? `<button class="row" style="background:var(--p);color:#fff" data-go="${scanDue ? "scan" : "paywall/day7"}"><span><b>Your free week is done</b><small>${scanDue ? "Do your day-7 re-scan and see the change" : "See your before / after and keep going"}</small></span><span class="r">›</span></button>` : ""}
       <div class="card" style="background:var(--lilac);color:var(--ink);flex-direction:row;justify-content:space-between;align-items:center">
         <div><div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Today's routine</div>
-          <div class="h1" style="font-size:26px">${n} of ${open.length} done</div>
+          <div class="h1" style="font-size:34px">${n} of ${open.length} done</div>
           <div class="small" style="color:var(--ink);opacity:.7;font-weight:700">${open.length - n ? `About ${Math.max(1, Math.round(open.filter((s) => !done.includes(s.id)).reduce((a, s) => a + s.min, 0)))} min left` : "All done for today"}</div></div>
         <svg width="76" height="76" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="32" fill="none" stroke="#fff" stroke-width="10"/><circle cx="40" cy="40" r="32" fill="none" stroke="#7C4DFF" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${100 - pct * 100}" transform="rotate(-90 40 40)" opacity="${pct ? 1 : 0}"/></svg></div>
       ${am.length ? `<div class="small" style="font-weight:800;letter-spacing:.08em;text-transform:uppercase">Morning</div><div class="col">${am.map((s) => stepRow(s, done.includes(s.id))).join("")}</div>` : ""}
@@ -1457,7 +1457,7 @@ R.studio = {
     const cats = V.CATS;
     const left = Math.max(0, CONFIG.FREE_LOOKS - S.tried.length);
     return `<div class="scr tabbed">
-      <div class="top"><span class="h1" style="font-size:28px">Try on</span><button class="pill chip" data-go="progress">Saved ${S.saved.length}</button></div>
+      <div class="top"><span class="h1" style="font-size:36px">Try on</span><button class="pill chip" data-go="progress">Saved ${S.saved.length}</button></div>
       <div class="scroll-x">${cats.map((c) => `<button class="chip sm ${ui.cat === c ? "on" : ""}" data-act="cat" data-v="${c}">${c}</button>`).join("")}</div>
       ${stageHTML("52vh", `<div class="br" style="display:flex;flex-direction:column;gap:8px"><button class="back" data-act="saveLook" aria-label="Save look">${ICON.heart}</button><button class="back" data-go="share" aria-label="Share">${ICON.share}</button></div>`)}
       <div class="grid3">${V.LOOKS.filter((l) => l.cat === ui.cat).map((l, i) => {
@@ -1519,12 +1519,12 @@ R.shelf = {
   view: () => {
     const items = shelfItems(), t = shelfTotals();
     return `<div class="scr tabbed">
-      <div class="top"><span class="h1" style="font-size:30px">My shelf</span><span class="pill">${t.buy.length} to get</span></div>
+      <div class="top"><span class="h1" style="font-size:39px">My shelf</span><span class="pill">${t.buy.length} to get</span></div>
       <p class="sub" style="margin-top:-6px">One pick for every step of your routine. Already have something similar? Tick it and skip buying.</p>
       <div class="seg">${TIERS.map((x) => `<button class="${S.shelf.tier === x.id ? "on" : ""}" data-act="shelfTier" data-v="${x.id}">${x.label}</button>`).join("")}</div>
       <div class="card" style="background:var(--lilac);color:var(--ink);flex-direction:row;justify-content:space-between;align-items:center">
         <div><div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Shopping list</div>
-          <div class="h1" style="font-size:28px">≈ $${t.cost}</div>
+          <div class="h1" style="font-size:36px">≈ $${t.cost}</div>
           <div style="font-size:13px;font-weight:700;opacity:.7">${t.buy.length} ${t.buy.length === 1 ? "item" : "items"}${t.saved ? ` · you saved ≈ $${t.saved} with what you have` : ""}</div></div>
         <span style="font-size:40px">🧴</span></div>
       <div class="col" style="gap:10px">${items.map((i) => i.locked
@@ -1622,11 +1622,11 @@ R.coach = {
     const ids = workoutFor(now()), today = exDoneToday(), n = ids.filter((id) => today.has(id)).length, st = exStreak();
     const mins = Math.round(ids.reduce((a, id) => a + exById(id).reps * (exById(id).phases[0].hold ? 6 : 3) + 15, 0) / 60);
     return `<div class="scr ${S.startedAt ? "tabbed" : ""}">
-      <div class="top">${S.startedAt ? `<span class="h1" style="font-size:28px">Face workout</span>` : `${backBtn("twin")}<span class="h1" style="font-size:24px">Face workout</span>`}
+      <div class="top">${S.startedAt ? `<span class="h1" style="font-size:36px">Face workout</span>` : `${backBtn("twin")}<span class="h1" style="font-size:31px">Face workout</span>`}
         <span class="pill">🔥 ${st} ${st === 1 ? "day" : "days"}</span></div>
       <div class="card" style="background:var(--lilac);color:var(--ink);gap:10px">
         <div class="top"><div><div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Today · jawline + cheeks</div>
-          <div class="h1" style="font-size:26px">${n === ids.length ? "Done for today" : `${ids.length} exercises · ~${mins} min`}</div></div>
+          <div class="h1" style="font-size:34px">${n === ids.length ? "Done for today" : `${ids.length} exercises · ~${mins} min`}</div></div>
           ${exDemo("jaw", 64)}</div>
         <div style="display:flex;gap:6px">${ids.map((id) => `<span style="flex:1;height:8px;border-radius:4px;background:${today.has(id) ? "#7C4DFF" : "rgba(14,14,20,.15)"}"></span>`).join("")}</div>
         <button class="cta inline" style="margin:0" data-act="woStart">${n && n < ids.length ? "Continue workout" : n === ids.length ? "Do it again" : "Start workout"}</button>
@@ -1693,8 +1693,8 @@ R.ex = {
         <div style="position:absolute;top:54px;left:12px">
           <svg width="96" height="96" viewBox="0 0 128 128" aria-live="polite"><circle cx="64" cy="64" r="56" fill="rgba(14,14,20,.55)"/>
             <circle id="exHold" cx="64" cy="64" r="56" fill="none" stroke="#B9A4FF" stroke-width="8" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 64 64)"/>
-            <text id="exReps" x="64" y="72" text-anchor="middle" fill="#fff" font-family="Manrope,sans-serif" font-weight="800" font-size="40">0</text>
-            <text x="64" y="96" text-anchor="middle" fill="#B9A4FF" font-family="Manrope,sans-serif" font-weight="800" font-size="13">of ${e.reps}</text></svg></div>
+            <text id="exReps" x="64" y="72" text-anchor="middle" fill="#fff" font-family="Inter,sans-serif" font-weight="800" font-size="40">0</text>
+            <text x="64" y="96" text-anchor="middle" fill="#B9A4FF" font-family="Inter,sans-serif" font-weight="800" font-size="13">of ${e.reps}</text></svg></div>
         <div class="bc" style="bottom:16px"><span class="pill" id="exCue" style="font-size:16px;padding:12px 18px;background:var(--chip)">Starting camera…</span></div>
       </div>
       <div style="display:flex;gap:4px">${Array.from({ length: e.reps }, (_, k) => `<span data-rep="${k}" style="flex:1;height:8px;border-radius:4px;background:var(--chip)"></span>`).join("")}</div>
@@ -1846,7 +1846,7 @@ R.progress = {
   view: () => {
     const f = S.scans[0], l = latest(), d = l && f ? l.a.score - f.a.score : 0;
     return `<div class="scr tabbed">
-      <div class="top"><span class="h1" style="font-size:30px">Your progress</span><button class="pill chip" data-go="account">Week ${week()} · ⚙</button></div>
+      <div class="top"><span class="h1" style="font-size:39px">Your progress</span><button class="pill chip" data-go="account">Week ${week()} · ⚙</button></div>
       ${exProgressHTML()}
       ${S.scans.length > 1 && S.scans[0].img && latest().img ? compareHTML(S.scans[0].img, latest().img, "Week 0", `Week ${week()}`, "40vh") : ""}
       <div class="card"><div class="top"><b style="font-size:15px">Skin score</b><span style="font-family:var(--h);font-size:22px;font-weight:800;color:var(--pl)">${d > 0 ? "+" : ""}${d}</span></div>${chart()}
@@ -1864,13 +1864,13 @@ ACT.openLook = (key) => { const s = S.saved.find((x) => x.key === key); if (s) {
 async function buildShareCard(canvas) {
   const W = 1080, H = 1920; canvas.width = W; canvas.height = H;
   const x = canvas.getContext("2d");
-  try { await document.fonts.load("800 80px 'Bricolage Grotesque'"); await document.fonts.load("800 40px Manrope"); } catch { /* fonts optional */ }
+  try { await document.fonts.load("800 80px Inter"); await document.fonts.load("800 40px Inter"); } catch { /* fonts optional */ }
   const g = x.createLinearGradient(0, 0, W * 0.4, H); g.addColorStop(0, "#E5DBFF"); g.addColorStop(1, "#FFC9DE");
   x.fillStyle = g; x.fillRect(0, 0, W, H);
-  const F = (w, s) => `${w} ${s}px 'Bricolage Grotesque', Manrope, sans-serif`;
+  const F = (w, s) => `${w} ${s}px Inter, sans-serif`;
   x.fillStyle = "#0E0E14"; x.font = F(800, 72); x.fillText("facetwin", 80, 150);
   x.fillStyle = "#7C4DFF"; x.fillText(".", 80 + x.measureText("facetwin").width, 150);
-  const pill = (t, px, py, bg, fg, size = 40) => { x.font = `800 ${size}px Manrope, sans-serif`; const w = x.measureText(t).width + size * 1.2; x.fillStyle = bg; x.beginPath(); x.roundRect(px, py, w, size * 1.8, size * 0.9); x.fill(); x.fillStyle = fg; x.fillText(t, px + size * 0.6, py + size * 1.25); return w; };
+  const pill = (t, px, py, bg, fg, size = 40) => { x.font = `800 ${size}px Inter, sans-serif`; const w = x.measureText(t).width + size * 1.2; x.fillStyle = bg; x.beginPath(); x.roundRect(px, py, w, size * 1.8, size * 0.9); x.fill(); x.fillStyle = fg; x.fillText(t, px + size * 0.6, py + size * 1.25); return w; };
 
   let before, after, headline, stickers = [];
   const multi = S.scans.length > 1;
@@ -1916,14 +1916,14 @@ async function buildShareCard(canvas) {
   let sy = ly + 30;
   stickers.slice(0, 3).forEach((t, i) => {
     x.save(); x.translate(i % 2 ? W - 120 : 90, sy); x.rotate(i % 2 ? 0.07 : -0.06);
-    x.font = "800 44px Manrope, sans-serif"; const w = x.measureText(t).width + 56;
+    x.font = "800 44px Inter, sans-serif"; const w = x.measureText(t).width + 56;
     if (i % 2) x.translate(-w, 0);
     x.fillStyle = "#0E0E14"; x.beginPath(); x.roundRect(4, 10, w, 92, 26); x.fill();
     x.fillStyle = i % 2 ? "#FFFFFF" : "#FFF1B8"; x.beginPath(); x.roundRect(0, 0, w, 92, 26); x.fill();
     x.fillStyle = "#0E0E14"; x.fillText(t, 28, 62); x.restore(); sy += 130;
   });
-  x.fillStyle = "#7C4DFF"; x.font = "800 46px Manrope, sans-serif"; x.fillText(ui.shareTags.join(" "), 80, H - 200);
-  x.fillStyle = "#0E0E14"; x.globalAlpha = 0.7; x.font = "700 40px Manrope, sans-serif"; x.fillText(`Try yours → ${CONFIG.SHARE_URL}`, 80, H - 120); x.globalAlpha = 1;
+  x.fillStyle = "#7C4DFF"; x.font = "800 46px Inter, sans-serif"; x.fillText(ui.shareTags.join(" "), 80, H - 200);
+  x.fillStyle = "#0E0E14"; x.globalAlpha = 0.7; x.font = "700 40px Inter, sans-serif"; x.fillText(`Try yours → ${CONFIG.SHARE_URL}`, 80, H - 120); x.globalAlpha = 1;
 }
 const TAGS = ["#glowup", "#facetwin", "#skincareroutine", "#3weekchallenge", "#newlook", "#beforeandafter", "#skintok"];
 R.share = {
@@ -1969,7 +1969,7 @@ function glowAccount() {
     <h1 class="h1">Your plan</h1>
     <div class="card plan-card">
       <div class="top"><span class="eyebrow-w">${p ? "Active" : "Free plan"}</span><span class="pill" style="background:#fff;color:var(--ink)">${p ? "Glow" : "Free"}${mine.length ? " + " + mine.map((u) => u.name).join(" + ") : ""}</span></div>
-      <span class="h1" style="font-size:28px">${p ? `${p.name} · $${p.price.toFixed(2)}` : `${left} free ${left === 1 ? "edit" : "edits"} left`}</span>
+      <span class="h1" style="font-size:36px">${p ? `${p.name} · $${p.price.toFixed(2)}` : `${left} free ${left === 1 ? "edit" : "edits"} left`}</span>
       <span style="font-size:13px;font-weight:700;opacity:.9">${p ? (S.billing?.customer ? "Change plan, update your card or cancel below." : "Manage or cancel from your payment receipt email.") : "Get unlimited retouch and HD download with Glow."}</span></div>
     <div class="col">
       ${!p ? row("crown", "Get Glow", "Unlimited edits, Studio and HD download", 'data-act="seePlans" data-v="glow"') : ""}
@@ -1991,7 +1991,7 @@ R.account = {
       <h1 class="h1">Your plan</h1>
       <div class="card" style="background:var(--p);color:#fff">
         <div class="top"><span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">${p ? "Active" : S.waitlist ? "Early access" : "Free week"}</span><span class="pill" style="background:#fff;color:var(--ink)">Week ${week()}</span></div>
-        <span class="h1" style="font-size:28px">${p ? `${p.name} · $${p.price}` : S.waitlist ? `Spot saved: ${planById(S.waitlist).name}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
+        <span class="h1" style="font-size:36px">${p ? `${p.name} · $${p.price}` : S.waitlist ? `Spot saved: ${planById(S.waitlist).name}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
         <span style="font-size:13px;font-weight:700;opacity:.85">${p ? (S.billing?.customer ? "Change plan, update card or cancel below." : "Manage or cancel from your payment receipt email.") : S.email ? `We'll email ${esc(S.email)}` : "No card on file"}</span></div>
       <div class="col">
         ${!p ? `<button class="row" data-go="paywall"><span><b>Get the full plan</b><small>Every look + full routine</small></span><span class="r">›</span></button>` : ""}

@@ -92,7 +92,7 @@ Until the pairs exist, section 1 and 5 show the slider with neutral dark placeho
 - Buttons at least 44 px high; body text at least 16 px; contrast AA on the dark background.
 - No autoplay video or sound; no heavy animation above the fold.
 - Targets: LCP under 2.5 s, CLS under 0.1, INP under 200 ms (check in PageSpeed after publishing).
-- Fonts: Bricolage Grotesque for headings, Manrope for body, self-hosted or preloaded.
+- Fonts: Instrument Serif for headings, Inter Display for buttons and prices, Inter for body, self-hosted or preloaded.
 - Do not add cookie banners, popups or chat widgets.
 
 ## 8. Connection to the app and tracking

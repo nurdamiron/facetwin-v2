@@ -7,7 +7,7 @@ Based on the owner's screenshots of the live site and on the project read throug
 | # | Where | Problem | Fix | Who |
 |---|---|---|---|---|
 | 1 | Feature cards (3 in a row) | Different heights; the phone mock in the middle card runs past the card's bottom border; the left card's photo strip is cropped into slivers; stock close-ups are not our results; "Soft glow" repeats "One-tap retouch" | equal height, mock fully inside, one clean crop, our own before/after in card 1, card 3 becomes the add-ons card (Looks / Coach) | agent |
-| 2 | Same cards | The wordmark "facetwin." inside the phone mock is the template's **serif** font and a stock avatar sits next to it | sans (Bricolage Grotesque), no avatar | agent |
+| 2 | Same cards | The wordmark "facetwin." inside the phone mock is the template's **serif** font and a stock avatar sits next to it | sans (Instrument Serif), no avatar | agent |
 | 3 | Numbers strip | "10s" renders larger than "8" and "4", labels wrap to two lines, a lonely "+" and a paragraph float on the right; the numbers did not decide anything | three numbers that decide whether she taps: **10s** typical edit, **2** free edits, **12** edits to choose from; short labels; same size and baseline; paragraph under the strip, no "+" | texts and numbers done (API); sizes: agent |
 | 4 | Steps cards ("Step 2" ...) | Title and text sit in a **darker rectangle** inside the grey card (the text frames have their own fill) | no fill on those frames, same color as the card | agent |
 | 5 | FAQ | Template questions ("neural scan", "98% precision"); oversized all-caps heading with the `[FAQ]` tag far left; big empty gap | questions replaced (done); heading smaller, tag directly above it | texts done; sizes: agent |
@@ -18,7 +18,7 @@ Based on the owner's screenshots of the live site and on the project read throug
 ## 2. Design system to enforce
 
 - Colors: background `#0E0E14`, card `#16161F`, line `rgba(255,255,255,.08)`, text `#F5F3F7`, muted `#A8A3B3`, accent `#7C4DFF` (hover `#8F69FF`). No pink anywhere.
-- Type: headings Bricolage Grotesque 700, body Manrope 500. Section heading: sentence case, 48 px desktop / 40 tablet / 32 phone, line height 1.05. Card title 20 px, body 16 px (never below 16 on phone). The big all-caps look stays only for the hero word.
+- Type: headings Instrument Serif 400 (accent words in italic), buttons and prices Inter Display 600-700, body Inter 500. Section heading: sentence case, 48 px desktop / 40 tablet / 32 phone, line height 1.05. Card title 20 px, body 16 px (never below 16 on phone). The big all-caps look stays only for the hero word.
 - Spacing: section padding 120 / 96 / 72 px (desktop / tablet / phone); gap between cards 24 / 20 / 16; one container width (1200).
 - Cards: radius 24, 1 px line, no inner colored boxes.
 - Buttons: primary = accent fill, white text, 52 px high (44 minimum); secondary = outline. One primary button per screen.
@@ -51,7 +51,7 @@ Design pass for facetwin. Do not change any copy, number, price or link. Fix lay
 
 Design system (set in Assets, not on single layers):
 - Colors: background #0E0E14, card #16161F, line rgba(255,255,255,.08), text #F5F3F7, muted #A8A3B3, accent #7C4DFF. Remove every pink element (the footer marquee strip too).
-- Fonts: headings Bricolage Grotesque 700, body Manrope 500. Section headings sentence case: 48 px desktop, 40 tablet, 32 phone. Body never below 16 px on Phone. Keep all-caps only for the hero word.
+- Fonts: headings Instrument Serif 400 (accent words in italic), buttons and prices Inter Display 600-700, body Inter 500. Section headings sentence case: 48 px desktop, 40 tablet, 32 phone. Body never below 16 px on Phone. Keep all-caps only for the hero word.
 - Section padding 120 / 96 / 72 px. Card radius 24, 1 px line border, no colored boxes inside cards.
 
 Fix these problems:

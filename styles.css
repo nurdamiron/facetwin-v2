@@ -3,10 +3,11 @@
   --text: #F5F3F7; --muted: #A6A3B3; --p: #7C4DFF; --pl: #B9A4FF; --ink: #0E0E14;
   --peach: #FFD9C9; --blue: #CFE8FF; --lilac: #E5DBFF; --yel: #FFF1B8; --pink: #FFC9DE; --mint: #C9F2DE;
   --danger: #FF5A76;
-  --h: "Bricolage Grotesque", Manrope, system-ui, sans-serif;
+  --h: "Instrument Serif", "Times New Roman", Georgia, serif; /* headings, wordmark, big numbers */
+  --serif: var(--h); --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; /* UI + body; "Inter Display" = Inter at opsz 32, see .disp below */
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; background: #08080C; color: var(--text); font-family: Manrope, system-ui, sans-serif; }
+html, body { margin: 0; background: #08080C; color: var(--text); font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; font-synthesis: none; }
 body { min-height: 100dvh; display: flex; justify-content: center; }
 #app { width: 100%; max-width: 430px; min-height: 100dvh; background: var(--bg); position: relative; overflow-x: clip; } /* clip, not hidden: hidden makes #app a scroll container and breaks sticky */
 @media (min-width: 500px) { body { padding: 24px 0; } #app { min-height: 860px; border-radius: 36px; box-shadow: 0 30px 80px rgba(0,0,0,.6); } }
@@ -22,8 +23,8 @@ a { color: var(--pl); }
 .bar { flex: 1; display: grid; gap: 5px; }
 .bar span { height: 6px; border-radius: 6px; background: var(--line); }
 .bar span.on { background: var(--p); }
-.h1 { margin: 0; font-family: var(--h); font-weight: 800; letter-spacing: -0.03em; font-size: 32px; line-height: 1.02; }
-.h1.xl { font-size: 40px; }
+.h1 { margin: 0; font-family: var(--h); font-weight: 400; letter-spacing: -0.015em; font-size: 42px; line-height: 1; }
+.h1.xl { font-size: 52px; }
 .hl { color: var(--pl); }
 .sub { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.45; }
 .small { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 0; }
@@ -96,7 +97,7 @@ a { color: var(--pl); }
 .plan .badge { position: absolute; top: -10px; left: 18px; background: var(--yel); color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
 .plan b { font-size: 16px; display: block; }
 .plan small { font-size: 12px; opacity: .75; }
-.plan .price { font-family: var(--h); font-size: 22px; font-weight: 800; }
+.plan .price { font-family: var(--sans); font-size: 22px; font-weight: 800; }
 .toast { position: fixed; left: 50%; top: calc(72px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: max-content; max-width: min(90vw, 380px); text-align: center; background: var(--chip); color: var(--text); border: 1px solid var(--p); box-shadow: 0 10px 30px rgba(0,0,0,.5); font-weight: 700; font-size: 14px; line-height: 1.35; padding: 12px 16px; border-radius: 18px; z-index: 50; } /* below the top bar: never covers the back button, the plan pill or the main button */
 .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
 .sheet { width: 100%; max-width: 430px; background: var(--card); border-radius: 28px 28px 0 0; padding: 22px 18px 28px; display: flex; flex-direction: column; gap: 12px; }
@@ -198,24 +199,30 @@ code { background: rgba(0,0,0,.1); padding: 1px 5px; border-radius: 6px; }
 .ex .cmp img { object-position: 50% 22%; }
 
 /* ===== Design pass v3: type system, depth, motion =====
-   Fonts: Bricolage Grotesque (display, prices, buttons) + Manrope (UI and body), self-hosted, latin subset (OFL). */
-@font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 400 800; font-stretch: 100%; font-display: swap; src: url(assets/fonts/bricolage-grotesque-latin.woff2) format("woff2"); }
-@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400 800; font-display: swap; src: url(assets/fonts/manrope-latin.woff2) format("woff2"); }
+   Fonts: Instrument Serif (headings, wordmark, big numbers; Regular + Italic) and Inter (UI + body; the variable file has the
+   optical-size axis, so "Inter Display" is Inter at opsz 32). Self-hosted, latin subset (OFL). */
+@font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/instrument-serif-latin.woff2) format("woff2"); }
+@font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: swap; src: url(assets/fonts/instrument-serif-italic-latin.woff2) format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400 800; font-display: swap; src: url(assets/fonts/inter-latin.woff2) format("woff2"); }
 :root { --hair: rgba(255,255,255,.07); --ring: 0 0 0 3px rgba(124,77,255,.5); --glow: 0 10px 28px rgba(124,77,255,.38); --ease: cubic-bezier(.2,.8,.2,1); }
 html { -webkit-text-size-adjust: 100%; }
 body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-weight: 500; line-height: 1.5; }
-.h1 { font-optical-sizing: auto; font-weight: 800; letter-spacing: -.035em; line-height: 1; text-wrap: balance; }
-.h1.xl { font-size: clamp(38px, 11.4vw, 48px); line-height: .98; letter-spacing: -.04em; }
+.h1 { font-weight: 400; letter-spacing: -.02em; line-height: .98; text-wrap: balance; }
+.h1.xl { font-size: clamp(50px, 15vw, 62px); line-height: .94; letter-spacing: -.025em; }
+.hl { font-style: italic; } /* the accent word of a heading is the Instrument Serif italic */
+.sub { font-optical-sizing: auto; }
+/* Inter Display: the big, tight cut for buttons, prices and card titles */
+.cta, .ghost, .plan b, .plan .price, .plan .badge, .row b, .how-i b, .busy b, .eyebrow-w, .tiers { font-variation-settings: "opsz" 32; }
 .sub { font-size: 16px; font-weight: 500; text-wrap: pretty; }
 .small { font-weight: 500; text-wrap: pretty; }
-.eyebrow-w, .tiers { font-family: var(--h); }
+.eyebrow-w, .tiers { font-family: var(--sans); }
 
 /* buttons */
-.cta { font-family: var(--h); font-weight: 700; font-size: 19px; letter-spacing: -.01em; padding: 19px 18px; background: linear-gradient(180deg, #8B5DFF 0%, #7C4DFF 55%, #6F3FF0 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), var(--glow); transition: transform .12s var(--ease), box-shadow .2s, filter .2s; }
+.cta { font-family: var(--sans); font-weight: 700; font-size: 19px; letter-spacing: -.01em; padding: 19px 18px; background: linear-gradient(180deg, #8B5DFF 0%, #7C4DFF 55%, #6F3FF0 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), var(--glow); transition: transform .12s var(--ease), box-shadow .2s, filter .2s; }
 .cta:active { transform: scale(.98); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 4px 14px rgba(124,77,255,.3); }
 .cta:disabled { box-shadow: none; }
 @media (hover: hover) { .cta:hover { filter: brightness(1.07); } .chip:hover, .ghost:hover, .row:hover { filter: brightness(1.12); } }
-.ghost { font-family: var(--h); font-weight: 700; border: 1px solid var(--hair); background: rgba(255,255,255,.04); }
+.ghost { font-family: var(--sans); font-weight: 700; border: 1px solid var(--hair); background: rgba(255,255,255,.04); }
 .chip { font-weight: 700; border: 1px solid var(--hair); transition: background .15s, box-shadow .2s, transform .1s; }
 .chip:active { transform: scale(.96); }
 .chip.on { border-color: transparent; box-shadow: 0 6px 18px rgba(124,77,255,.35); }
@@ -227,7 +234,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 /* surfaces */
 .card { background: linear-gradient(180deg, #1D1D28, #171720); border: 1px solid var(--hair); }
 .row, .how-i, .feat-i { border: 1px solid var(--hair); }
-.row b, .how-i b { font-family: var(--h); font-weight: 700; letter-spacing: -.005em; }
+.row b, .how-i b { font-family: var(--sans); font-weight: 700; letter-spacing: -.005em; }
 .tlabel { font-weight: 700; }
 
 /* plans: a clear radio, one glowing selected card, tabular prices */
@@ -236,10 +243,10 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .plan::before { content: ""; position: absolute; left: 18px; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%; border: 2px solid var(--muted); transition: all .15s; }
 .plan.on { background: linear-gradient(180deg, #8B5DFF, #7040F2); border-color: transparent; box-shadow: var(--glow); }
 .plan.on::before { border-color: #fff; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C4DFF' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
-.plan b { font-family: var(--h); font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+.plan b { font-family: var(--sans); font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
 .plan small { font-weight: 600; }
 .plan .price { font-size: 26px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: lining-nums tabular-nums; }
-.plan .badge { font-family: var(--h); font-weight: 800; left: 56px; }
+.plan .badge { font-family: var(--sans); font-weight: 800; left: 56px; }
 
 /* checkboxes */
 input[type=checkbox] { -webkit-appearance: none; appearance: none; width: 24px !important; height: 24px !important; margin: 0; flex: none; border-radius: 8px; border: 2px solid var(--muted); background: transparent; display: grid; place-content: center; cursor: pointer; transition: background .15s, border-color .15s; }
@@ -267,7 +274,7 @@ input[type=checkbox]:checked { border-color: var(--p); background: var(--p) url(
 
 /* "retouching" state: a light band scans the photo */
 .busy { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; background: rgba(14,14,20,.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); overflow: hidden; }
-.busy b { font-family: var(--h); font-weight: 700; font-size: 20px; letter-spacing: -.01em; }
+.busy b { font-family: var(--sans); font-weight: 700; font-size: 20px; letter-spacing: -.01em; }
 .scanl { position: absolute; left: 0; right: 0; top: -100px; height: 100px; background: linear-gradient(to bottom, transparent, rgba(185,164,255,.5), transparent); animation: scanY 2.2s linear infinite; }
 @keyframes scanY { to { top: 100%; } }
 
