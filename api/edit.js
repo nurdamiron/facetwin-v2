@@ -1,5 +1,5 @@
 // Vercel serverless function: the hosted replacement for `server.py` (/api/edit).
-// The Gemini key lives in the Vercel env var GEMINI_API_KEY and never reaches the browser.
+// The AI key (GEMINI_API_KEY or OPENAI_API_KEY, see _ai.js) lives in Vercel env vars and never reaches the browser.
 //
 // Guardrails (a public URL would otherwise let anyone spend your key):
 //  - the prompt is built HERE from the preview id (previews.js); only the "Your idea" text is free-form, 200 chars, cleaned
@@ -7,8 +7,8 @@
 //  - best-effort rate limit per IP and a daily cap per server instance (in memory; for a hard limit use Upstash/Vercel KV)
 //  - photos are never logged or stored
 import { promptFor, previewById, cleanIdea } from "../previews.js";
+import { aiProvider } from "./_ai.js";
 
-const MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
 const MAX_B64 = 8_000_000; // about 6 MB of image
 const PER_IP_PER_HOUR = Number(process.env.AI_EDITS_PER_HOUR || process.env.RATE_LIMIT_PER_HOUR || 20); // AI_EDITS_PER_HOUR is the documented name
 const DAILY_CAP = Number(process.env.DAILY_CAP || 500);
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const origin = req.headers.origin;
   if (origin) { try { if (new URL(origin).host !== req.headers.host) return res.status(403).json({ error: "Not allowed" }); } catch { return res.status(403).json({ error: "Not allowed" }); } }
-  const key = (process.env.GEMINI_API_KEY || "").trim();
+  const ai = aiProvider(), key = ai ? ai.key : "";
   const MOCK = process.env.AI_MOCK === "1" && !process.env.VERCEL; // local tests only: returns the photo unchanged
   if (!key && !MOCK) return res.status(503).json({ error: "The AI editor is not set up yet." });
 
@@ -47,6 +47,8 @@ export default async function handler(req, res) {
   if (why) return res.status(429).json({ error: why });
 
   if (MOCK && !key) return res.status(200).json({ image, mime, mock: true });
+  if (ai.name === "openai") return editOpenAI(res, ai, image, mime, promptFor(id, text));
+  const MODEL = ai.model;
   const body = {
     contents: [{ role: "user", parts: [{ inline_data: { mime_type: mime, data: image } }, { text: promptFor(id, text) }] }],
     generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
@@ -65,6 +67,30 @@ export default async function handler(req, res) {
     }
     const reason = (data.promptFeedback && data.promptFeedback.blockReason) || (data.candidates && data.candidates[0] && data.candidates[0].finishReason) || "no image returned";
     return res.status(502).json({ error: `The AI didn't return an image (${reason}). Try another photo.` });
+  } catch {
+    return res.status(502).json({ error: "The AI service is unreachable. Try again." });
+  }
+}
+
+// OpenAI Images "edits": multipart, the photo as a file, the prompt built on the server. JPEG out keeps the reply well under Vercel's 4.5 MB limit.
+// input_fidelity=high asks the model to keep the face as it is; if the chosen model rejects an optional parameter (HTTP 400) we retry once without it.
+async function editOpenAI(res, ai, image, mime, prompt) {
+  const quality = process.env.OPENAI_IMAGE_QUALITY || "medium", fidelity = process.env.OPENAI_INPUT_FIDELITY === undefined ? "high" : process.env.OPENAI_INPUT_FIDELITY;
+  const send = (optional) => {
+    const fd = new FormData();
+    fd.append("model", ai.model); fd.append("prompt", prompt); fd.append("size", "auto");
+    fd.append("image", new Blob([Buffer.from(image, "base64")], { type: mime }), "photo." + (mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"));
+    if (optional) { fd.append("quality", quality); fd.append("output_format", "jpeg"); fd.append("output_compression", "90"); if (fidelity) fd.append("input_fidelity", fidelity); }
+    return fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: "Bearer " + ai.key }, body: fd });
+  };
+  try {
+    let r = await send(true);
+    if (r.status === 400) r = await send(false);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { console.error("[ai] openai", r.status, data && data.error && data.error.code); return res.status(502).json({ error: `AI service error ${r.status}. Try again.` }); }
+    const out = data.data && data.data[0] && data.data[0].b64_json;
+    if (!out) return res.status(502).json({ error: "The AI didn't return an image. Try another photo." });
+    return res.status(200).json({ image: out, mime: data.output_format === "png" ? "image/png" : data.output_format === "webp" ? "image/webp" : "image/jpeg" });
   } catch {
     return res.status(502).json({ error: "The AI service is unreachable. Try again." });
   }
