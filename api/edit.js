@@ -81,17 +81,22 @@ async function editOpenAI(res, ai, image, mime, prompt) {
     fd.append("model", ai.model); fd.append("prompt", prompt); fd.append("size", "auto");
     fd.append("image", new Blob([Buffer.from(image, "base64")], { type: mime }), "photo." + (mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"));
     if (optional) { fd.append("quality", quality); fd.append("output_format", "jpeg"); fd.append("output_compression", "90"); if (fidelity) fd.append("input_fidelity", fidelity); }
-    return fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: "Bearer " + ai.key }, body: fd });
+    return fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: "Bearer " + ai.key }, body: fd, signal: AbortSignal.timeout(55_000) }); // stop before Vercel's 60 s limit so the user gets a clear message, not a blank 504
   };
   try {
     let r = await send(true);
     if (r.status === 400) r = await send(false);
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) { console.error("[ai] openai", r.status, data && data.error && data.error.code); return res.status(502).json({ error: `AI service error ${r.status}. Try again.` }); }
+    if (!r.ok) {
+      const e = (data && data.error) || {}; console.error("[ai] openai", r.status, e.code || e.type || "", String(e.message || "").slice(0, 200)); // reason goes to the Vercel log only (never the photo)
+      const hint = r.status === 401 ? "The AI key is not valid." : r.status === 403 ? "The AI account isn't allowed to edit images yet (organization not verified?)." : r.status === 429 ? "The AI is busy or out of credit. Try again in a minute." : "";
+      return res.status(502).json({ error: hint ? `${hint} (AI error ${r.status})` : `AI service error ${r.status}. Try again.` });
+    }
     const out = data.data && data.data[0] && data.data[0].b64_json;
     if (!out) return res.status(502).json({ error: "The AI didn't return an image. Try another photo." });
     return res.status(200).json({ image: out, mime: data.output_format === "png" ? "image/png" : data.output_format === "webp" ? "image/webp" : "image/jpeg" });
-  } catch {
+  } catch (e) {
+    if (e && (e.name === "TimeoutError" || e.name === "AbortError")) return res.status(504).json({ error: "The AI took too long. Try again." });
     return res.status(502).json({ error: "The AI service is unreachable. Try again." });
   }
 }

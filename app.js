@@ -849,11 +849,13 @@ R.twin = {
 async function checkAI() {
   try {
     const r = await fetch("api/status", { cache: "no-store" });
-    if (r.ok) { const j = await r.json(); ui.ai = { ok: !!j.ai, server: true, payments: !!j.payments, upsells: !!j.upsells }; }
+    if (r.ok) { const j = await r.json(); ui.ai = { ok: !!j.ai, server: true, payments: !!j.payments, upsells: !!j.upsells, provider: j.provider || "" }; }
     else ui.ai = { ok: false, server: false };
   } catch { ui.ai = { ok: false, server: false }; }
   return ui.ai;
 }
+// Who really receives the photo: named in the consent sheet and the privacy card (must match the provider configured on the server).
+const aiWho = () => ui.ai && ui.ai.provider === "openai" ? "OpenAI" : ui.ai && ui.ai.provider === "gemini" ? "Google's Gemini AI" : "our AI image provider (OpenAI or Google Gemini)";
 const cmpSeen = new Set();
 const compareHTML = (a, b, la = "Before", lb = "After", maxH = "56vh") => { const k = b.length + b.slice(-48), hint = !cmpSeen.has(k); cmpSeen.add(k); return `<div class="cmp${hint ? " hint" : ""}" style="max-height:${maxH}">
   <img src="${b}" alt="${lb}"><div class="cmp-a"><img src="${a}" alt="${la}"></div><div class="cmp-line"><span>⟷</span></div>
@@ -905,7 +907,7 @@ R.preview = {
           <textarea id="ctext" rows="2" maxlength="200" placeholder="e.g. a short curly fade and a thin mustache" style="width:100%;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--text);padding:12px;font:inherit;font-weight:700;resize:none">${esc(ui.ctext || "")}</textarea>
           <small class="small">Keep it to your face and hair. The AI keeps everything else the same.</small></div>`
         : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
-      ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add your Gemini API key (README → Realistic previews), then restart." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
+      ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add GEMINI_API_KEY or OPENAI_API_KEY (README → Deploy on Vercel), then redeploy." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
           ${S.startedAt ? `<button class="link" style="text-align:left;color:var(--ink);text-decoration:underline" data-go="studio">Use the instant drawn try-on meanwhile</button>` : ""}</div>` : ""}
       ${!shown ? `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>` : ""}
       ${!S.startedAt && S.previews.length && !S.flags.glow ? `<button class="cta" data-act="twinNext">Save my looks + start</button>` : ""}
@@ -1028,7 +1030,7 @@ function toggleLook(id) {
 function askAIConsent(next) {
   ui.afterConsent = next;
   sheet(`<h2 class="h1" style="font-size:31px">One thing before we edit</h2>
-    <p class="sub">To make this edit we send your photo to Google's Gemini AI. We don't keep it on our servers; your photos stay in this browser. You can delete them anytime in Privacy. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+    <p class="sub">To make this edit we send your photo to ${aiWho()}. We don't keep it on our servers; your photos stay in this browser. You can delete them anytime in Privacy. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
     <label class="row" style="cursor:pointer"><input type="checkbox" id="aiOk" style="width:22px;height:22px;flex:none"><span><b>I agree to send my photo to the AI editor</b><small>This includes processing of my face in the photo. Needed to continue.</small></span></label>
     <button class="cta inline" data-act="aiAgree">Continue</button><button class="link" data-close>Not now</button>`);
 }
@@ -2083,7 +2085,7 @@ R.privacy = {
     <h1 class="h1 xl">Your face, <span class="hl">your rules</span></h1>
     <div class="card" style="background:var(--mint);color:var(--ink);font-size:13px;font-weight:700;line-height:1.5">
       <span>✓ Face detection runs on this phone.</span>
-      <span>✓ A photo goes to Google's Gemini AI only when you tap Show me and agree. We don't store it.</span>
+      <span>✓ A photo goes to ${aiWho()} only when you tap Show me and agree. We don't store it.</span>
       <span>✓ Photos, edits and looks are saved only in this browser.</span>
       <span>✓ We only receive your email (if you gave it) and your plan choice.</span>
       <span>✓ Delete everything here anytime, in one tap.</span></div>
