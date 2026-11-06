@@ -1,7 +1,7 @@
 // Phase 1: page-level copy + controls + links, and the FAQ block (detached copy). DRY=1 only prints the plan.
 import { connect } from "framer-api";
 const DRY = process.env.DRY === "1";
-const APP_URL = process.env.APP_URL || "https://facetwin-git-claude-trustin-15191a-nurdaulet-akhmatovs-projects.vercel.app/?utm_source=framer&utm_medium=landing";
+const APP_URL = process.env.APP_URL || "https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing";
 const EMAIL = "mailto:hello@facetwin.app";
 const norm = (s) => String(s).replace(/\s+/g, " ").trim();
 

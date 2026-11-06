@@ -13,6 +13,7 @@ export FRAMER_PROJECT=https://framer.com/projects/<your project>   # optional, d
 |---|---|---|
 | `set-prices.mjs` | writes the two Glow pricing cards from `../../config.js` (`DRY=1` to preview). Does not publish | **yes, run after every price change** |
 | `apply.mjs` | page copy + component controls + links to the app + FAQ replacement (`DRY=1` to preview, `APP_URL=` for the button link) | yes, idempotent: it only changes texts that still match the old template wording |
+| `links.mjs` | points every CTA button at the funnel `https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing` (`DRY=1` to preview, `APP_URL=` to override). Header/footer masters must be fixed by hand | **yes, run after any domain change** |
 | `verify.mjs` | reads the page and lists leftover template wording, link-like values, FAQ items per breakpoint | yes |
 | `faqdiag.mjs`, `fixfaq.mjs` | find and remove duplicate / stray FAQ Block frames | yes, after any detach |
 | `leftovers.mjs` | scans every page for template wording (Sensoria, neural, face swap, app-store, ...) in text and component controls | yes |

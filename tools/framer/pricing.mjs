@@ -1,5 +1,5 @@
 import { connect } from "framer-api";
-const APP = process.env.APP_URL || "https://facetwin-git-claude-trustin-15191a-nurdaulet-akhmatovs-projects.vercel.app/?utm_source=framer&utm_medium=landing";
+const APP = process.env.APP_URL || "https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing";
 const CARDS = [
   { fc0xWhwjw: "$9.99", HuTeItTSZ: "first month", Wlwq_6h4L: "Glow monthly", r8Ufyvcw8: "Then $19.99 a month. Unlimited natural retouch and Studio backgrounds. Cancel anytime.",
     vH1rp7rmx: "Unlimited retouch edits", VFHbVjWvS: "Studio backgrounds, passport style", zj2xOy3vG: "HD download, no watermark", CYHQ6Ve7Y: "2 free edits before you pay", PAOmEaTvX: "Cancel anytime in Settings", DXvdqpf1i: "Try it free" },

@@ -31,7 +31,7 @@ The landing never takes payment. Payment happens after she has seen her own resu
 | What | Link |
 |---|---|
 | Landing (Framer, published production URL since 6 Nov) | https://facetwin.framer.website/ (the older https://shiny-culture-616454.framer.app/ also exists) |
-| App (Vercel branch preview, used by the landing buttons) | https://facetwin-git-claude-trustin-15191a-nurdaulet-akhmatovs-projects.vercel.app/?utm_source=framer&utm_medium=landing |
+| App (production, used by the landing buttons) | https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing |
 | App production domain | **TBD**: replace the buttons' link when known |
 | Framer project | "Sensoria Template // Luna UI (copy)" in the owner's Framer account |
 
