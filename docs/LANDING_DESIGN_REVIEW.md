@@ -67,3 +67,33 @@ Motion: scroll reveal on cards and headings (fade up 16 px, 450 ms ease-out, onc
 
 When done, list every layer you changed and check there is no horizontal scroll at 390, 768 and 1360 px.
 ```
+
+## 6. The "Three steps" block: what happens on click (tested on the live page, Desktop and Phone)
+
+Clicking Step 1 / 2 / 3 works technically: the card gets a purple border and the picture on the right changes (3 variants of the `How it works` component, 3 illustrations). The problems are in how it looks and feels:
+
+| # | Problem | Fix |
+|---|---|---|
+| S1 | **Phone: the picture is below the three cards.** After a tap on Step 2 the picture that changed is only half on screen, so the tap seems to do nothing | on Phone put the picture **above** the cards (fixed 4:3 area), cards below; or make the block a swipe carousel |
+| S2 | The three illustrations differ in scale and composition: step 1 a small window, step 2 a tall card that is much bigger, step 3 a window again. The text inside the mock-ups is about 7-8 px (chips "Skin / Eyes / Smile / Freckles / Glow / Backdrop", the "Download" button), unreadable on a phone | redo all three at the same card size and position, same glow; UI text at least 14 px at 390 px width (crop tighter) |
+| S3 | Selected and unselected cards look almost the same: all three badges are purple, all texts equally bright, only a 1 px purple border differs | unselected: grey badge `#2A2A36` with muted text, text at 60%; selected: accent badge, `#1A1A26` fill, 1 px accent border, 3 px accent bar on the left |
+| S4 | The change is abrupt, and card heights shift by about 10 px when the selection moves (the unselected card is shorter) | crossfade the picture 250 ms; same min-height for selected and unselected cards; 200 ms ease-out on the card state |
+| S5 | Content does not match the app: chip names are not the app's names; step 3 shows a plain **Download** although the HD file is paid | label it **Download HD**; after the first real Gemini run replace the three pictures with real app screenshots (not before: mock results are identical to the input) |
+| S6 | Nothing moves unless she clicks | optional: auto-advance every 4 s once visible, stop after the first tap |
+| S7 | Phone: the "Made in Framer" badge sits on the text of Step 3 | removed only by a paid Framer plan |
+
+Also checked: the header on the live page is now `facetwin.` + menu + **Upload a selfie** (good). **Addresses:** `https://shiny-culture-616454.framer.app/` serves the current site; `https://facetwin.framer.website/` returned "Site not found" on 6 Nov although the API lists it as the production URL: check Framer -> Site Settings -> Domains and publish again.
+
+### Prompt for the Framer agent (steps block)
+
+```
+Fix the "How it works" block (the three steps with the picture). Do not change any copy.
+
+1. On Phone, put the picture above the three step cards (fixed 4:3 area), cards below. On Desktop keep the cards left and the picture right.
+2. Selected card: accent badge (#7C4DFF), fill #1A1A26, 1 px accent border, 3 px accent bar on the left edge. Unselected cards: grey badge #2A2A36 with muted text, text at 60% opacity, no accent. Same min-height for every card in every state so nothing jumps.
+3. Transitions: crossfade the picture 250 ms, card state change 200 ms ease-out.
+4. The three pictures must have the same card size and position and the same glow. Make the text inside them at least 14 px when the picture is 358 px wide (zoom/crop the mock-up). Replace the text "Download" in the third picture with "Download HD".
+5. Optional: when the block is visible, advance to the next step every 4 seconds; stop after the user taps a step.
+
+Check Desktop (1360), Tablet (768) and Phone (390): no jumping, no clipped text, tapping a step on Phone shows the changed picture on screen without scrolling.
+```
