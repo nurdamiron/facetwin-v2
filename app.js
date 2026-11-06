@@ -22,6 +22,47 @@ const DAY = 864e5;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ---------- waiting that never looks frozen ----------
+// crawler: a progress value that always creeps forward (never backwards, never reaches 100 by itself) and jumps on real progress.
+function crawler(render, { from = 0, to = 90, tau = 15000 } = {}) {
+  let lo = from, hi = to, span = tau, pct = from, dead = false;
+  const t00 = performance.now();
+  let t0 = t00;
+  const tick = () => {
+    if (dead) return;
+    const v = lo + (hi - lo) * (1 - Math.exp(-(performance.now() - t0) / span));
+    if (v > pct) pct = v;
+    render(pct, performance.now() - t00);
+  };
+  const id = setInterval(tick, 250); tick();
+  return {
+    band(a, b, ms = tau) { lo = Math.max(pct, a); hi = Math.max(lo + 1, b); span = ms; t0 = performance.now(); },
+    real(v) { if (v > pct) pct = v; },
+    stop() { dead = true; clearInterval(id); },
+  };
+}
+const withTimeout = (promise, ms, what) => Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(what + " timed out")), ms))]);
+async function fetchT(url, opts = {}, ms = 25000) { // fetch that gives up instead of waiting forever
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctl.signal }); }
+  catch (e) { throw e.name === "AbortError" ? new Error("That took too long. Check your connection and try again.") : e; }
+  finally { clearTimeout(timer); }
+}
+// Full-screen "working" layer for waits outside a screen of their own (opening Stripe, confirming a payment).
+function waitScreen(title, sub) {
+  hideWait();
+  const d = document.createElement("div");
+  d.className = "waitov"; d.id = "waitov"; d.setAttribute("role", "status");
+  d.innerHTML = `<div class="spin"></div><b>${esc(title)}</b><div class="pbar"><i id="wbar"></i></div><span class="small" id="wsub">${esc(sub)}</span>`;
+  document.body.appendChild(d);
+  d._cr = crawler((p, ms) => {
+    const b = $("#wbar"); if (b) b.style.width = p + "%";
+    const s = $("#wsub"); if (s && ms > 8000) s.textContent = "Still working. Nothing is stuck, this can take a few more seconds.";
+  }, { from: 6, to: 92, tau: 6000 });
+}
+function hideWait() { const d = $("#waitov"); if (d) { d._cr?.stop(); d.remove(); } }
+addEventListener("pageshow", (e) => { if (e.persisted) hideWait(); }); // back from Stripe with the page restored from cache
+
 // ---------------- state ----------------
 const DEFAULT = {
   goal: null, looks: [], concerns: [], minutes: 5, email: "", consent: true,
@@ -533,7 +574,7 @@ function selfieView(mode) {
     <label class="link" style="cursor:pointer;text-align:center">${scan ? "Upload a photo instead" : "Upload 1-3 photos instead"}<input type="file" accept="image/*" hidden id="upl"></label>
   </div>`;
 }
-R.selfie = { view: () => selfieView("onboard"), mount: () => mountCamera("onboard") };
+R.selfie = { view: () => selfieView("onboard"), mount: () => { if (hasLooks()) D.loadDepth().catch(() => {}); return mountCamera("onboard"); } }; // the 3D AI downloads while she takes the selfie
 
 // ---------- build the twin ----------
 R.building = {
@@ -541,12 +582,12 @@ R.building = {
   view: () => `<div class="scr" style="align-items:center">
     <span class="pill chip">Almost there</span>
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
-      <div id="bring" style="width:240px;height:240px;border-radius:50%;background:conic-gradient(var(--p) 0 5%,var(--line) 5% 100%);display:flex;align-items:center;justify-content:center">
+      <div id="bring" class="alive" style="width:240px;height:240px;border-radius:50%;background:conic-gradient(var(--p) 0 5%,var(--line) 5% 100%);display:flex;align-items:center;justify-content:center">
         <div style="width:210px;height:210px;border-radius:50%;overflow:hidden;background:var(--peach)"><img src="${S.photos.front}" alt="" style="width:100%;height:100%;object-fit:cover"></div></div>
-      <div class="center"><div id="bpct" style="font-family:var(--h);font-size:44px;font-weight:800">5%</div><div style="font-weight:700">Building your 3D twin</div></div>
+      <div class="center"><div id="bpct" style="font-family:var(--h);font-size:44px;font-weight:800">5%</div><div style="font-weight:700">Building your 3D twin</div><div id="bmsg" class="small" style="margin-top:6px;min-height:20px">Reading your face…</div></div>
     </div>
     <div class="col" style="width:100%">${["Mapping 478 points of your face", "Building your realistic 3D twin", "Writing your face report"].map((t, i) => `<div class="row" id="bs${i}"><span><b>${t}</b><small>Waiting</small></span><span class="r">…</span></div>`).join("")}</div>
-    <p class="small center">Everything happens on your phone</p></div>`,
+    <p class="small center" id="bhint" style="min-height:34px">Your face data is processed in this browser.</p></div>`,
   mount: runBuild,
 };
 function setBuild(pct, step, state) {
@@ -557,41 +598,76 @@ function setBuild(pct, step, state) {
     const row = $("#bs" + step);
     row.querySelector("small").textContent = state === "done" ? "Done" : "Working on it";
     row.querySelector(".r").textContent = state === "done" ? "✓" : "…";
-    row.style.background = state === "done" ? "var(--card)" : "var(--p)";
+    row.style.backgroundColor = state === "done" ? "var(--card)" : "var(--p)";
+    row.classList.toggle("live", state !== "done");
   }
 }
 async function runBuild() {
-  setBuild(8, 0, "work");
-  await V.loadFace();
-  const front = await loadImg(S.photos.front);
-  const lm = V.detect(front);
-  if (!lm) { S.flags.fail = "front"; save(); track("TwinFailed", { reason: "no_face" }); go("twinfailed"); return; }
-  S.lms = { front: lm };
-  const a = V.analyze(toCanvas(front, 480), lm);
-  S.analysis = a;
-  setBuild(40, 0, "done"); setBuild(45, 1, "work");
-  for (const k of ["left", "right"]) {
-    if (!S.photos[k]) continue;
-    const l2 = V.detect(await loadImg(S.photos[k]));
-    if (l2) S.lms[k] = l2; else delete S.photos[k];
-  }
-  const small = await shrink(S.photos.front, 480);
-  S.scans = [{ date: dkey(), img: small, a, lm }];
-  D.onDepthProgress((p) => { const el = $("#bs1 small"); if (el && p < 1) el.textContent = `Downloading the 3D AI (first time only) · ${Math.round(p * 100)}%`; });
+  const MSGS = {
+    face: ["Reading your face…", "Finding the outline of your face…", "Mapping the points…"],
+    dl: ["Getting the 3D AI ready…", "This part is only slow the first time…", "Downloading, nothing is stuck…"],
+    lift: ["Lifting your photo into 3D…", "Working out depth for your hair and neck…", "Smoothing the shape…", "Joining the pieces…"],
+    report: ["Writing your face report…", "Measuring your proportions…", "Last touches…"],
+  };
+  let msgs = MSGS.face, t3d = 0;
+  const cr = crawler((p, ms) => {
+    setBuild(Math.round(p));
+    const m = $("#bmsg"); if (m) m.textContent = msgs[Math.floor(ms / 3200) % msgs.length];
+    const h = $("#bhint"); if (!h) return;
+    const s3 = t3d ? performance.now() - t3d : 0;
+    if (s3 > 45000) h.textContent = "Slow connection. Still going, nothing is stuck.";
+    else if (s3 > 12000) h.textContent = "First time can take up to a minute. Keep this page open.";
+  }, { from: 5, to: 38, tau: 2500 });
   try {
-    const sm = $("#bs1 small"); if (sm) sm.textContent = "Lifting your photo into 3D…";
-    const dep = await D.estimateDepth(front);
-    S.depth = D.depthToDataURL(dep);
-    track("Twin3DBuilt");
-    if (S.lms.left || S.lms.right) { if (sm) sm.textContent = "Joining your 3 selfies into a 180° twin…"; await ensureSideDepth(); }
-  } catch (e) { console.warn("[facetwin] 3D build", e); S.depth = null; track("Twin3DFailed"); }
-  setBuild(70, 1, "done"); setBuild(72, 2, "work");
-  S.measures = { ...measures(lm, front.naturalWidth, front.naturalHeight), v3: 1 };
-  await sleep(500);
-  save();
-  setBuild(100, 2, "done");
-  await sleep(450);
-  go(S.startedAt ? homeFor() : "twin"); // a Coach buyer goes straight into her app
+    setBuild(8, 0, "work");
+    await withTimeout(V.loadFace(), 45000, "Face model");
+    const front = await loadImg(S.photos.front);
+    const lm = V.detect(front);
+    if (!lm) { cr.stop(); S.flags.fail = "front"; save(); track("TwinFailed", { reason: "no_face" }); go("twinfailed"); return; }
+    S.lms = { front: lm };
+    const a = V.analyze(toCanvas(front, 480), lm);
+    S.analysis = a;
+    cr.real(40); setBuild(40, 0, "done"); setBuild(45, 1, "work");
+    msgs = MSGS.dl; t3d = performance.now(); cr.band(45, 62, 30000);
+    for (const k of ["left", "right"]) {
+      if (!S.photos[k]) continue;
+      const l2 = V.detect(await loadImg(S.photos[k]));
+      if (l2) S.lms[k] = l2; else delete S.photos[k];
+    }
+    const small = await shrink(S.photos.front, 480);
+    S.scans = [{ date: dkey(), img: small, a, lm }];
+    D.onDepthProgress((p, got, total) => {
+      const el = $("#bs1 small"); if (!el) return;
+      if (p < 1) el.textContent = `Downloading the 3D AI (first time only) · ${Math.round(got / 1048576)} of ${Math.round(total / 1048576)} MB`;
+      cr.real(45 + p * 17);
+    });
+    const sm = $("#bs1 small");
+    try {
+      const dl = D.loadDepth();
+      await withTimeout(dl, 150000, "3D AI download");
+      msgs = MSGS.lift; cr.band(62, 70, 9000);
+      if (sm) sm.textContent = "Lifting your photo into 3D…";
+      const dep = await withTimeout(D.estimateDepth(front), 90000, "3D lift");
+      S.depth = D.depthToDataURL(dep);
+      track("Twin3DBuilt");
+      if (S.lms.left || S.lms.right) { if (sm) sm.textContent = "Joining your 3 selfies into a 180° twin…"; await withTimeout(ensureSideDepth(), 90000, "Side views"); }
+    } catch (e) {
+      console.warn("[facetwin] 3D build", e); S.depth = null; track("Twin3DFailed");
+      if (sm) sm.textContent = "Skipping the 3D lift. Your twin still works."; // never leave her waiting on a step that is stuck
+    }
+    t3d = 0; msgs = MSGS.report; cr.real(70); setBuild(70, 1, "done"); setBuild(72, 2, "work"); cr.band(72, 98, 3000);
+    S.measures = { ...measures(lm, front.naturalWidth, front.naturalHeight), v3: 1 };
+    await sleep(900);
+    save();
+    cr.stop(); setBuild(100, 2, "done");
+    const m = $("#bmsg"); if (m) m.textContent = "Ready!";
+    await sleep(600);
+    go(S.startedAt ? homeFor() : "twin"); // a Coach buyer goes straight into her app
+  } catch (e) {
+    cr.stop(); console.warn("[facetwin] build", e); track("TwinFailed", { reason: "error" });
+    toast("Something slowed down on our side. Let's try your photo again.");
+    go("twinfailed");
+  }
 }
 function defaultLooks() {
   const out = [], cats = new Set();
@@ -891,7 +967,7 @@ R.preview = {
         : `<div class="photo" style="aspect-ratio:3/4;max-height:52vh"><img src="${before}" alt="Your photo">
             <span class="tl"><span class="pill dark">${ico(p.icon, 16)} ${esc(p.name)}</span></span>
             ${base ? `<span class="tr"><span class="pill">on top of ${esc(entryName(base))}</span></span>` : ""}
-            ${ui.busy ? `<div class="busy"><div class="scanl"></div><div class="spin"></div><b id="busyMsg">Creating your look…</b><span class="small">Usually 5–15 seconds</span></div>` : ""}</div>`}
+            ${ui.busy ? `<div class="busy"><div class="scanl"></div><div class="spin"></div><b id="busyMsg">Creating your look…</b><div class="pbar"><i id="busyBar"></i></div><span class="small" id="busyHint">Usually 5–15 seconds</span></div>` : ""}</div>`}
       ${shown && !ui.prev3d ? `<p class="small center">Drag the line to compare · AI preview, a simulation of the change</p>` : ""}
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
       ${shown ? `<div class="col" style="gap:12px">
@@ -973,10 +1049,15 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
   const base = redo ? (redo.baseId ? previewOf(redo.baseId) : null) : ui.base;
   ui.busy = true; ui.prevSel = id; ui.prev3d = false; render();
   const msgs = ["Reading your face…", "Keeping you, you…", "Adding the change…", "Final touches…"];
-  let k = 0; const t = setInterval(() => { const el = $("#busyMsg"); if (el) el.textContent = msgs[++k % msgs.length]; }, 3500);
+  const cr = crawler((pc, ms) => {
+    const bar = $("#busyBar"); if (bar) bar.style.width = pc + "%";
+    const el = $("#busyMsg"); if (el) el.textContent = msgs[Math.min(msgs.length - 1, Math.floor(ms / 3500))];
+    const h = $("#busyHint"); if (h) h.textContent = ms > 40000 ? "Busy right now. Still working, nothing is stuck." : ms > 18000 ? "Good edits take a little longer. Almost there." : "Usually 5–15 seconds";
+  }, { from: 4, to: 94, tau: 11000 });
+  const t = { stop: () => cr.stop() };
   try {
     const src = toCanvas(await loadImg(base ? base.img : S.photos.front), 1024).toDataURL("image/jpeg", 0.9);
-    const r = await fetch("api/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: src.split(",")[1], mime: "image/jpeg", prompt: promptFor(id, text), id, text }) });
+    const r = await fetchT("api/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: src.split(",")[1], mime: "image/jpeg", prompt: promptFor(id, text), id, text }) }, 85000);
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.image) throw new Error(j.error || "The preview didn't work. Try again.");
     const big = await loadImg(`data:${j.mime || "image/png"};base64,${j.image}`);
@@ -992,7 +1073,7 @@ ACT.prevGen = async (id, _el, _e, redo = null) => {
     ui.prevKey = key; ui.base = null; ui.prev3d = S.flags.glow ? false : HAS3D; // V1 flow shows the new look on the 3D twin first
   } catch (e) {
     track("PreviewFailed", { preview: id }); toast(String(e.message || e).slice(0, 160));
-  } finally { clearInterval(t); ui.busy = false; render(); }
+  } finally { t.stop(); ui.busy = false; render(); }
 };
 ACT.prevSave = async () => {
   const q = ui.prevKey ? previewOf(ui.prevKey) : previewOf(changeKey(ui.prevSel)); if (!q) return;
@@ -1181,16 +1262,17 @@ ACT.checkout = async (_v, el) => {
   if (STRIPE_PLANS.includes(p.id)) {
     const label = el && el.textContent;
     if (el) { el.disabled = true; el.textContent = "Opening secure checkout…"; }
+    waitScreen("Opening secure checkout", "You'll be on Stripe in a moment.");
     try {
-      const r = await fetch("api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: p.id, email: S.email || "", utm: S.utm }) });
+      const r = await fetchT("api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: p.id, email: S.email || "", utm: S.utm }) });
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.url) { location.href = j.url; return; }
       if (r.status !== 503 && r.status !== 404) throw new Error(j.error || "Checkout didn't open. Try again.");
     } catch (e) {
-      if (el) { el.disabled = false; el.textContent = label; }
+      hideWait(); if (el) { el.disabled = false; el.textContent = label; }
       return toast(String(e.message || e).slice(0, 160));
     }
-    if (el) { el.disabled = false; el.textContent = label; }
+    hideWait(); if (el) { el.disabled = false; el.textContent = label; }
   }
   // 2) payment link, 3) honest "payments open soon" screen
   if (link) location.href = link.replace("{email}", encodeURIComponent(S.email || ""));
@@ -1200,8 +1282,9 @@ ACT.checkout = async (_v, el) => {
 async function confirmCheckout(cs) {
   history.replaceState(null, "", location.pathname + (DEBUG ? "?debug=1" : "") + "#/welcome");
   let next = "preview";
+  waitScreen("Confirming your payment", "Checking with Stripe. Please keep this page open.");
   try {
-    const r = await fetch(`api/verify?cs=${encodeURIComponent(cs)}`, { cache: "no-store" });
+    const r = await fetchT(`api/verify?cs=${encodeURIComponent(cs)}`, { cache: "no-store" }, 30000);
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.paid) throw new Error(j.error || "We couldn't confirm the payment yet.");
     S.billing = { customer: j.customer, token: j.token, cs };
@@ -1234,9 +1317,11 @@ async function confirmCheckout(cs) {
       if (S.flags.glow) { S.flags.upFlow = 1; save(); next = nextOffer(null); } else next = "welcome";
     }
   } catch (e) {
+    hideWait();
     toast(String(e.message || e).slice(0, 160) + " Write to " + CONFIG.SUPPORT_EMAIL);
     go("paywall"); return;
   }
+  hideWait();
   go(next);
 }
 
@@ -1258,11 +1343,10 @@ R.up = {
   needs: true,
   view: (arg) => {
     const [id, phase] = String(arg || "").split("-"), u = upsellOf(id) || CONFIG.UPSELLS[0], second = phase === "2";
-    const price = second ? u.skipPrice : u.price, key = u.id + (second ? "-2" : ""), last = S.previews[0];
+    const price = second ? u.skipPrice : u.price, key = u.id + (second ? "-2" : "");
     return `<div class="scr" style="gap:14px">
       ${S.flags.upFlow && !second && id === CONFIG.UPSELLS[0].id && S.paid ? `<div class="ok-banner"><span class="ok-ic">${ico("check", 16)}</span><span>${esc(planById(S.paid).name)} is active. Your HD download is unlocked.</span></div>` : ""}
       <div class="top"><span class="pill chip">${ico("gift", 14)} One-time add-on</span><span class="spacer"></span></div>
-      ${last ? `<div class="photo" style="height:150px;border-radius:24px"><img src="${last.img}" alt="Your edit"></div>` : ""}
       <span class="tbub" style="--tc:var(--lilac)">${ico(u.icon, 30)}</span>
       <h1 class="h1 xl">${esc(u.title)}</h1>
       <div class="col" style="font-size:14px;font-weight:700;gap:9px">${u.points.map((t) => `<div class="top" style="justify-content:flex-start;gap:10px">${ico("check", 20)}<span>${esc(t)}</span></div>`).join("")}</div>
@@ -1286,13 +1370,14 @@ ACT.upBuy = async (v, el) => {
   if (testerOn()) { S.owned = { ...S.owned, [u.id]: 1 }; save(); toast(`Tester mode: ${u.name} unlocked`); return go(nextOffer(u.id)); }
   const label = el && el.textContent;
   if (el) { el.disabled = true; el.textContent = "Opening secure checkout…"; }
+  waitScreen("Opening secure checkout", "You'll be on Stripe in a moment.");
   try {
-    const r = await fetch("api/checkout", { method: "POST", headers: { "Content-Type": "application/json" },
+    const r = await fetchT("api/checkout", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind: "upsell", item: u.id, skip, email: S.email || "", utm: S.utm, customer: S.billing?.customer, token: S.billing?.token }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.url) throw new Error(j.error || "Checkout didn't open. Try again.");
     location.href = j.url;
-  } catch (e) { if (el) { el.disabled = false; el.textContent = label; } toast(String(e.message || e).slice(0, 160)); }
+  } catch (e) { hideWait(); if (el) { el.disabled = false; el.textContent = label; } toast(String(e.message || e).slice(0, 160)); }
 };
 ACT.upNo = (v) => {
   const [id, phase] = String(v).split("-");

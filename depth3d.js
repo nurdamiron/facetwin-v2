@@ -10,14 +10,33 @@ let session = null, loading = null;
 
 let progressCb = null;
 export function onDepthProgress(cb) { progressCb = cb; }
-async function fetchModel(url) {
-  const r = await fetch(url);
-  if (!r.ok || !r.body) throw new Error("model download failed " + r.status);
-  const total = +r.headers.get("content-length") || 0, reader = r.body.getReader(), parts = [];
-  let got = 0;
-  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; progressCb?.(total ? got / total : 0); }
-  const buf = new Uint8Array(got); let o = 0; for (const p of parts) { buf.set(p, o); o += p.length; }
-  return buf;
+const MODEL_BYTES = 99373606; // size of the model file, used for the percent when the server sends no Content-Length
+// Downloads the model with a stall watchdog: no bytes for 25 s -> abort and try once more, so the screen can never hang on 0%.
+async function fetchModel(url, tries = 2) {
+  for (let attempt = 1; ; attempt++) {
+    const ctl = new AbortController();
+    let timer;
+    const kick = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 25000); };
+    try {
+      kick();
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok || !r.body) throw new Error("model download failed " + r.status);
+      const total = +r.headers.get("content-length") || MODEL_BYTES, reader = r.body.getReader(), parts = [];
+      let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        kick(); parts.push(value); got += value.length;
+        progressCb?.(Math.min(0.99, got / total), got, total);
+      }
+      clearTimeout(timer);
+      const buf = new Uint8Array(got); let o = 0; for (const p of parts) { buf.set(p, o); o += p.length; }
+      return buf;
+    } catch (e) {
+      clearTimeout(timer);
+      if (attempt >= tries) throw e;
+      progressCb?.(0, 0, MODEL_BYTES);
+    }
+  }
 }
 export function loadDepth() {
   if (session) return Promise.resolve(session);
