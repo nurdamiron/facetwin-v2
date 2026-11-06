@@ -196,3 +196,91 @@ code { background: rgba(0,0,0,.1); padding: 1px 5px; border-radius: 6px; }
 .dock.pay { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: -24px; }
 .dock.pay .link { padding: 2px; }
 .ex .cmp img { object-position: 50% 22%; }
+
+/* ===== Design pass v3: type system, depth, motion =====
+   Fonts: Bricolage Grotesque (display, prices, buttons) + Manrope (UI and body), self-hosted, latin subset (OFL). */
+@font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 400 800; font-stretch: 100%; font-display: swap; src: url(assets/fonts/bricolage-grotesque-latin.woff2) format("woff2"); }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400 800; font-display: swap; src: url(assets/fonts/manrope-latin.woff2) format("woff2"); }
+:root { --hair: rgba(255,255,255,.07); --ring: 0 0 0 3px rgba(124,77,255,.5); --glow: 0 10px 28px rgba(124,77,255,.38); --ease: cubic-bezier(.2,.8,.2,1); }
+html { -webkit-text-size-adjust: 100%; }
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-weight: 500; line-height: 1.5; }
+.h1 { font-optical-sizing: auto; font-weight: 800; letter-spacing: -.035em; line-height: 1; text-wrap: balance; }
+.h1.xl { font-size: clamp(38px, 11.4vw, 48px); line-height: .98; letter-spacing: -.04em; }
+.sub { font-size: 16px; font-weight: 500; text-wrap: pretty; }
+.small { font-weight: 500; text-wrap: pretty; }
+.eyebrow-w, .tiers { font-family: var(--h); }
+
+/* buttons */
+.cta { font-family: var(--h); font-weight: 700; font-size: 19px; letter-spacing: -.01em; padding: 19px 18px; background: linear-gradient(180deg, #8B5DFF 0%, #7C4DFF 55%, #6F3FF0 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), var(--glow); transition: transform .12s var(--ease), box-shadow .2s, filter .2s; }
+.cta:active { transform: scale(.98); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 4px 14px rgba(124,77,255,.3); }
+.cta:disabled { box-shadow: none; }
+@media (hover: hover) { .cta:hover { filter: brightness(1.07); } .chip:hover, .ghost:hover, .row:hover { filter: brightness(1.12); } }
+.ghost { font-family: var(--h); font-weight: 700; border: 1px solid var(--hair); background: rgba(255,255,255,.04); }
+.chip { font-weight: 700; border: 1px solid var(--hair); transition: background .15s, box-shadow .2s, transform .1s; }
+.chip:active { transform: scale(.96); }
+.chip.on { border-color: transparent; box-shadow: 0 6px 18px rgba(124,77,255,.35); }
+.pill { letter-spacing: .01em; }
+.back, .iconbtn { border: 1px solid var(--hair); transition: background .15s, transform .1s; }
+.back:active, .iconbtn:active { transform: scale(.94); }
+.link { font-weight: 700; }
+
+/* surfaces */
+.card { background: linear-gradient(180deg, #1D1D28, #171720); border: 1px solid var(--hair); }
+.row, .how-i, .feat-i { border: 1px solid var(--hair); }
+.row b, .how-i b { font-family: var(--h); font-weight: 700; letter-spacing: -.005em; }
+.tlabel { font-weight: 700; }
+
+/* plans: a clear radio, one glowing selected card, tabular prices */
+.plan { padding: 16px 18px 16px 56px; border: 1px solid var(--hair); transition: background .2s, box-shadow .2s, transform .12s var(--ease); }
+.plan:active { transform: scale(.985); }
+.plan::before { content: ""; position: absolute; left: 18px; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%; border: 2px solid var(--muted); transition: all .15s; }
+.plan.on { background: linear-gradient(180deg, #8B5DFF, #7040F2); border-color: transparent; box-shadow: var(--glow); }
+.plan.on::before { border-color: #fff; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C4DFF' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.plan b { font-family: var(--h); font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+.plan small { font-weight: 600; }
+.plan .price { font-size: 26px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: lining-nums tabular-nums; }
+.plan .badge { font-family: var(--h); font-weight: 800; left: 56px; }
+
+/* checkboxes */
+input[type=checkbox] { -webkit-appearance: none; appearance: none; width: 24px !important; height: 24px !important; margin: 0; flex: none; border-radius: 8px; border: 2px solid var(--muted); background: transparent; display: grid; place-content: center; cursor: pointer; transition: background .15s, border-color .15s; }
+input[type=checkbox]:checked { border-color: var(--p); background: var(--p) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 16px no-repeat; }
+
+/* focus */
+:where(button, a, input, textarea, select, summary):focus-visible { outline: 2px solid var(--pl); outline-offset: 2px; }
+
+/* screen entry: only on a route change */
+.scr.enter { animation: scrIn .34s var(--ease) both; }
+@keyframes scrIn { from { opacity: 0; transform: translateY(10px); } }
+
+/* landing: soft purple light behind the hero */
+.land { position: relative; isolation: isolate; }
+.land::before { content: ""; position: absolute; left: -20px; right: -20px; top: -20px; height: 360px; z-index: -1; pointer-events: none; background: radial-gradient(60% 70% at 50% 0%, rgba(124,77,255,.32), rgba(124,77,255,0) 72%); }
+
+/* before / after slider */
+.cmp { box-shadow: 0 20px 50px rgba(0,0,0,.45), 0 0 0 1px var(--hair); }
+.cmp-line { width: 2px; margin-left: -1px; }
+.cmp-line span { width: 44px; height: 44px; font-size: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+.cmp.hint .cmp-a { animation: sweepA 1.7s .6s var(--ease) 1; }
+.cmp.hint .cmp-line { animation: sweepL 1.7s .6s var(--ease) 1; }
+@keyframes sweepA { 0%, 100% { clip-path: inset(0 50% 0 0); } 30% { clip-path: inset(0 28% 0 0); } 70% { clip-path: inset(0 72% 0 0); } }
+@keyframes sweepL { 0%, 100% { left: 50%; } 30% { left: 72%; } 70% { left: 28%; } }
+
+/* "retouching" state: a light band scans the photo */
+.busy { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; background: rgba(14,14,20,.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); overflow: hidden; }
+.busy b { font-family: var(--h); font-weight: 700; font-size: 20px; letter-spacing: -.01em; }
+.scanl { position: absolute; left: 0; right: 0; top: -100px; height: 100px; background: linear-gradient(to bottom, transparent, rgba(185,164,255,.5), transparent); animation: scanY 2.2s linear infinite; }
+@keyframes scanY { to { top: 100%; } }
+
+/* purchase success moment */
+.ok-banner { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 18px; background: rgba(201,242,222,.1); border: 1px solid rgba(201,242,222,.28); color: var(--mint); font-weight: 700; font-size: 14px; line-height: 1.35; }
+.ok-ic { width: 28px; height: 28px; border-radius: 50%; background: var(--mint); color: var(--ink); display: grid; place-items: center; flex: none; animation: pop .55s var(--ease) both; }
+@keyframes pop { 0% { transform: scale(.3); } 70% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* safe areas on phones with a home bar */
+.dock { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .spin { animation-duration: .9s !important; animation-iteration-count: infinite !important; }
+}
+.row input[type=checkbox] + span { flex: 1; text-align: left; }

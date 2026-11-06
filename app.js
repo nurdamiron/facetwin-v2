@@ -187,6 +187,7 @@ function download(blob, name) {
 // ---------------- router ----------------
 const R = {};
 let cleanup = [];
+let lastRoute = "";
 const ui = { angle: "front", ai: null, prevSel: null, busy: false, before: false, cat: "Hair", shareTags: ["#glowup", "#facetwin", "#skincareroutine"], hideEyes: true, plan: null };
 function go(path) { if (location.hash === "#/" + path) render(); else location.hash = "#/" + path; }
 function render() {
@@ -202,7 +203,9 @@ function render() {
     if (S.flags.glow && isPaid()) { go(S.owned.coach ? "goal" : "up/coach"); return; } // Glow subscriber: Coach offer / onboarding, not the Glow paywall again
     name = "paywall"; r = R.paywall;
   }
+  const entering = name !== lastRoute; lastRoute = name;
   app.innerHTML = r.view(arg) + (r.tab && S.startedAt ? tabbar(r.tab) : "") + (testerOn() ? `<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);background:var(--yel);color:var(--ink);font-size:11px;font-weight:800;padding:3px 10px;border-radius:0 0 10px 10px;z-index:40">TESTER MODE · all unlocked</div>` : "");
+  if (entering) app.firstElementChild?.classList.add("enter");
   window.scrollTo(0, 0);
   track("Screen", { screen: name });
   if (r.mount) Promise.resolve(r.mount(arg)).catch((e) => { console.error(e); toast("Something went wrong. Try again."); });
@@ -833,10 +836,11 @@ async function checkAI() {
   } catch { ui.ai = { ok: false, server: false }; }
   return ui.ai;
 }
-const compareHTML = (a, b, la = "Before", lb = "After", maxH = "56vh") => `<div class="cmp" style="max-height:${maxH}">
+const cmpSeen = new Set();
+const compareHTML = (a, b, la = "Before", lb = "After", maxH = "56vh") => { const k = b.length + b.slice(-48), hint = !cmpSeen.has(k); cmpSeen.add(k); return `<div class="cmp${hint ? " hint" : ""}" style="max-height:${maxH}">
   <img src="${b}" alt="${lb}"><div class="cmp-a"><img src="${a}" alt="${la}"></div><div class="cmp-line"><span>⟷</span></div>
   <span class="cmp-tl"><span class="pill dark">${la}</span></span><span class="cmp-tr"><span class="pill">${lb}</span></span>
-  <input type="range" min="0" max="100" value="50" class="cmp-r" aria-label="Drag to compare ${la} and ${lb}"></div>`;
+  <input type="range" min="0" max="100" value="50" class="cmp-r" aria-label="Drag to compare ${la} and ${lb}"></div>`; };
 app.addEventListener("input", (e) => {
   if (!e.target.classList.contains("cmp-r")) return;
   const box = e.target.closest(".cmp"), v = +e.target.value;
@@ -869,7 +873,7 @@ R.preview = {
         : `<div class="photo" style="aspect-ratio:3/4;max-height:52vh"><img src="${before}" alt="Your photo">
             <span class="tl"><span class="pill dark">${ico(p.icon, 16)} ${esc(p.name)}</span></span>
             ${base ? `<span class="tr"><span class="pill">on top of ${esc(entryName(base))}</span></span>` : ""}
-            ${ui.busy ? `<div style="position:absolute;inset:0;background:rgba(14,14,20,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px"><div class="spin"></div><b id="busyMsg">Creating your look…</b><span class="small">Usually 5–15 seconds</span></div>` : ""}</div>`}
+            ${ui.busy ? `<div class="busy"><div class="scanl"></div><div class="spin"></div><b id="busyMsg">Creating your look…</b><span class="small">Usually 5–15 seconds</span></div>` : ""}</div>`}
       ${shown && !ui.prev3d ? `<p class="small center">Drag the line to compare · AI preview, a simulation of the change</p>` : ""}
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
       ${shown ? `<div class="col" style="gap:12px">
@@ -1202,7 +1206,7 @@ async function confirmCheckout(cs) {
         console.info("[track]", "Purchase", { value, plan: p.id, cs });
         track("Subscribe", { value, currency: cur });
       }
-      toast(`${p.name} is active. Thank you!`);
+      if (!S.flags.glow) toast(`${p.name} is active. Thank you!`); // Glow buyers get the green banner on the next screen instead
       if (S.flags.glow) { S.flags.upFlow = 1; save(); next = nextOffer(null); } else next = "welcome";
     }
   } catch (e) {
@@ -1232,6 +1236,7 @@ R.up = {
     const [id, phase] = String(arg || "").split("-"), u = upsellOf(id) || CONFIG.UPSELLS[0], second = phase === "2";
     const price = second ? u.skipPrice : u.price, key = u.id + (second ? "-2" : ""), last = S.previews[0];
     return `<div class="scr" style="gap:14px">
+      ${S.flags.upFlow && !second && id === CONFIG.UPSELLS[0].id && S.paid ? `<div class="ok-banner"><span class="ok-ic">${ico("check", 16)}</span><span>${esc(planById(S.paid).name)} is active. Your HD download is unlocked.</span></div>` : ""}
       <div class="top"><span class="pill chip">${ico("gift", 14)} One-time add-on</span><span class="spacer"></span></div>
       ${last ? `<div class="photo" style="height:150px;border-radius:24px"><img src="${last.img}" alt="Your edit"></div>` : ""}
       <span class="tbub" style="--tc:var(--lilac)">${ico(u.icon, 30)}</span>
