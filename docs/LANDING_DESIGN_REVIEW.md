@@ -97,3 +97,60 @@ Fix the "How it works" block (the three steps with the picture). Do not change a
 
 Check Desktop (1360), Tablet (768) and Phone (390): no jumping, no clipped text, tapping a step on Phone shows the changed picture on screen without scrolling.
 ```
+
+## 7. Mobile audit (6 Nov, live page, 320 / 360 / 390 / 430 / 768 px)
+
+Automated with `tools/framer/mobile-audit.cjs`, then every screen checked by eye.
+
+**Passes:** no horizontal overflow at any of the five widths; all 18 images have alt text; the menu (Home, How it works, Pricing, FAQ, Privacy, `hello@facetwin.app`, Privacy Policy, Terms) is clean; pricing, steps and benefit cards read well; the FAQ now has the real questions; the footer text is ours.
+
+| # | Problem | Fix |
+|---|---|---|
+| M1 | **Hero hierarchy is upside down.** The biggest text is the brand word `facetwin.` (clipped by the "Made in Framer" badge). The promise, which is the headline, is an 18 px line | the promise is the H1 (36-40 px, sentence case); the brand word shrinks to a small mark; order: H1, one line, button, chips `2 free edits · About 10 seconds · No sign-up` |
+| M2 | **Fonts:** the page uses Inter Display (144 text items) and a **serif** (Instrument Serif) for the wordmark in the header, the phone mock-up and the footer. The app uses Bricolage Grotesque + Manrope | one wordmark in the sans heading font; page fonts set to Bricolage Grotesque / Manrope in Assets |
+| M3 | **Colors:** the carousel's active pagination dot is **orange** (leftover accent); small purple tags `[Glow]`, `[Numbers]` are `#7C4DFF` on `#111` = 3.9:1, below 4.5:1 | dot to `#7C4DFF`; small purple text to `#9B7BFF` (about 6:1); keep `#7C4DFF` for fills and borders. Page background `#111111` vs brand `#0E0E14`: set `#0E0E14` |
+| M4 | One **unstyled link** renders in default blue `#0000EE` | find it and style it as body text with an underline in `#9B7BFF` |
+| M5 | A **white blob sits on the face** in the "What you get" photo (hover cursor effect, no hover on touch) | hide the effect on touch / Phone |
+| M6 | Three lonely **"+" ornaments** float before paragraphs | remove on Phone |
+| M7 | **Dead zones:** after the numbers there is a tall purple band and about 800 px of empty black with three small portraits floating around; on scroll the portraits **cover the band's heading** ("YOUR BEST SELFIE, IN ONE TAP"). About 2,500 px of almost no content between the numbers and the steps | band height auto (about 360 px), no floating portraits on Phone, or place them as one row inside the band |
+| M8 | The steps heading breaks as "THREE STEPS. / ABOUT / TEN SECONDS." | 32 px with balanced wrapping |
+| M9 | FAQ heading is three huge lines | 32 px, tag directly above |
+| M10 | **"Download the app" with App Store and Google Play buttons and a phone mock-up.** There is no native app | delete the block; replace with the button **Upload a selfie** and the line `2 free edits. About 10 seconds.` |
+| M11 | **Footer:** big serif `facetwin` without the dot; email `hello@facetwin.com` (ours is `.app`); a newsletter field with no backend; links Home / About / Careers / Journal and Threads / Instagram / LinkedIn from the template; `© 2026 . Facetwin All rights reserved.` (stray dot, no period) | compact footer: wordmark, `Natural selfie retouch.`, Privacy, Terms, `hello@facetwin.app`, `© 2026 facetwin. All rights reserved.` |
+| M12 | **Tap targets and tiny text:** footer links 30 px and 20 px high (minimum 44), header wordmark link 36 px, text inside the phone mock-up 12-13 px, carousel counter "Slide 3 of 9" 12 px | 44 px minimum for links and buttons; 14 px minimum for any text |
+| M13 | Benefit photos are labelled "Illustrative, not a facetwin result" only in alt text | add a visible caption `Illustrative examples` under the cards until real before/after exist |
+| M14 | "Made in Framer" badge overlaps the hero word and Step 3 | paid Framer plan |
+
+### Funnel links (done 6 Nov)
+All page buttons now go to `https://facetwin-demo.vercel.app/?utm_source=framer&utm_medium=landing` (15 places across Desktop / Tablet / Phone; script `tools/framer/links.mjs`). The mailto links are `hello@facetwin.app`. The UTM / `fbclid` passthrough script matches links with `utm_source=framer`, so it keeps working.
+
+**Production check on 6 Nov:** `https://facetwin-demo.vercel.app/api/status` returned `ai: false, payments: false, upsells: false`. The funnel loads, but **GEMINI_API_KEY and the Stripe variables are not set on that deployment**: edits and payment cannot work until they are.
+
+## 8. Highlights ticker ("Selfie touch-up highlights"): words and icons
+
+The ticker has 9 cards (`Problem card 1-9`). Words (done, `tools/framer/cards.mjs`) match what the app really does. Icons: all nine cards share one sparkle symbol, which sits inside the card's master component and cannot be changed through the API. The Hugeicons Free SVGs (the same family as in the app) are in `assets/landing-icons/`.
+
+| Card | Words | Icon file (Hugeicons) |
+|---|---|---|
+| 1 | Clearer skin | `01-clearskin.svg` |
+| 2 | Fresher eyes | `02-undereye.svg` |
+| 3 | Brighter smile | `03-teeth.svg` |
+| 4 | Freckles on or off | `04-frecklesOn.svg` (the set has no better freckle icon) |
+| 5 | Healthy glow | `05-glow.svg` |
+| 6 | Clean backgrounds | `06-image.svg` |
+| 7 | Softer lines | `07-wrinkles.svg` |
+| 8 | Same expression | `08-smile.svg` |
+| 9 | Still you | `09-face.svg` |
+
+Prompt for the Framer agent (first drag the nine files from `assets/landing-icons/` into Framer's Assets):
+
+```
+Fix the "Selfie touch-up highlights" ticker. Do not change any copy.
+
+The component "Problem card" has one fixed icon ("Touch-up symbol"), so all nine cards look the same. Add an image variable "Icon" to "Problem card" and use it instead of the fixed symbol: 24 px icon, accent color #7C4DFF, on a 40 px round chip with fill #1E1B2E.
+
+Then set the Icon of each card from the SVG files I added to Assets (they are numbered 01 to 09 and match the card order):
+Problem card 1 Clearer skin = 01-clearskin, 2 Fresher eyes = 02-undereye, 3 Brighter smile = 03-teeth, 4 Freckles on or off = 04-frecklesOn, 5 Healthy glow = 05-glow, 6 Clean backgrounds = 06-image, 7 Softer lines = 07-wrinkles, 8 Same expression = 08-smile, 9 Still you = 09-face.
+
+Make the pagination dots #7C4DFF when active (they are orange now) and #3A3A46 when inactive. Hide the "Slide X of Y" counter text on Phone. Check the ticker on Phone (390), Tablet and Desktop.
+```

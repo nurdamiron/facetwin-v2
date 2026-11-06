@@ -22,6 +22,8 @@ export FRAMER_PROJECT=https://framer.com/projects/<your project>   # optional, d
 | `improve.mjs` | the 6 Nov copy pass (headings, benefit lines, pricing renewal wording, FAQ heading) on all three breakpoints; `DRY=1` to preview | yes, idempotent |
 | `faq3.mjs` | FAQ questions / answers and the three numbers in the Numbers block | yes, idempotent |
 | `copy.mjs` | dumps every text per breakpoint to `copy.json` (to compare Desktop / Tablet / Phone) | yes |
+| `cards.mjs` | sets the 9 words of the "Selfie touch-up highlights" ticker cards | yes |
+| `mobile-audit.cjs` | Playwright audit of the live page at 320 / 360 / 390 / 430 / 768 px: overflow, tiny text and tap targets, contrast, colors, fonts, alt texts (`node mobile-audit.cjs <outdir> <url>`) | yes |
 | `pub.mjs` | `publish()`: **goes live immediately** at the project's `.framer.app` URL | yes, use deliberately |
 | `pricing.mjs`, `logo.mjs` | one-off replacements of the Pricing Table and the logo in one card (they target node ids that no longer exist) | no, kept as examples of the detach -> edit -> `setParent` -> remove technique |
 
