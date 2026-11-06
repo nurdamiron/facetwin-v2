@@ -18,6 +18,9 @@ export FRAMER_PROJECT=https://framer.com/projects/<your project>   # optional, d
 | `leftovers.mjs` | scans every page for template wording (Sensoria, neural, face swap, app-store, ...) in text and component controls | yes |
 | `polish.mjs` | removes the "Custom Plan" block, fixes stray mailto / face-swap wording; `DRY=1` to preview | yes, idempotent |
 | `custom-code.mjs` | puts the UTM / `fbclid` passthrough script in the site's body-end custom code (refuses to overwrite someone else's code) | yes |
+| `improve.mjs` | the 6 Nov copy pass (headings, benefit lines, pricing renewal wording, FAQ heading) on all three breakpoints; `DRY=1` to preview | yes, idempotent |
+| `faq3.mjs` | FAQ questions / answers and the three numbers in the Numbers block | yes, idempotent |
+| `copy.mjs` | dumps every text per breakpoint to `copy.json` (to compare Desktop / Tablet / Phone) | yes |
 | `pub.mjs` | `publish()`: **goes live immediately** at the project's `.framer.app` URL | yes, use deliberately |
 | `pricing.mjs`, `logo.mjs` | one-off replacements of the Pricing Table and the logo in one card (they target node ids that no longer exist) | no, kept as examples of the detach -> edit -> `setParent` -> remove technique |
 
