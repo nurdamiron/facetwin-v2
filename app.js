@@ -475,6 +475,29 @@ async function mountCamera(mode) {
   };
   requestAnimationFrame(loop);
 }
+// Camera screen for the 3 onboarding selfies (mode "onboard") and the weekly re-scan (mode "scan").
+// mountCamera() fills it in: #cam video, #ringp progress ring, #hint, #dark, #shutter, #skipside, #snote, #upl, thumbs [data-th].
+function selfieView(mode) {
+  const scan = mode === "scan";
+  return `<div class="scr">
+    <div class="top">${backBtn(scan ? "progress" : "permission")}<span class="pill chip" id="sstep">${scan ? "Weekly re-scan" : "Selfie 1 of 3"}</span><span class="spacer"></span></div>
+    <h1 class="h1" id="stitle">${scan ? `Same light, same angle <span class="hl">as last time</span>` : `Look straight <span class="hl">at the camera</span>`}</h1>
+    <div class="photo" style="aspect-ratio:3/4;max-height:54vh;background:#000">
+      <video id="cam" playsinline muted autoplay style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
+      <svg class="ring" viewBox="0 0 100 133" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <ellipse cx="50" cy="62" rx="33" ry="43" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <ellipse id="ringp" cx="50" cy="62" rx="33" ry="43" fill="none" stroke="#7C4DFF" stroke-width="2.6" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 50 62)"/>
+      </svg>
+      <span class="pill" id="hint" style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);white-space:nowrap">Loading face AI…</span>
+      <div id="dark" class="hidden" style="position:absolute;inset:0;background:rgba(14,14,20,.55);display:flex;align-items:center;justify-content:center"><b>Too dark. Face a window or a lamp.</b></div>
+    </div>
+    ${scan ? "" : `<div class="row" style="justify-content:center;gap:10px">${[0, 1, 2].map((i) => `<span data-th="${i}" style="width:46px;height:58px;border-radius:12px;background:var(--card) center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:var(--muted)">${["front", "side", "side"][i]}</span>`).join("")}</div>`}
+    <button class="cta" id="shutter" aria-label="Take photo">Take photo</button>
+    ${scan ? "" : `<button class="link hidden" id="skipside">Skip the side photos</button>`}
+    <div id="snote" class="small center"></div>
+    <label class="link" style="cursor:pointer;text-align:center">${scan ? "Upload a photo instead" : "Upload 1-3 photos instead"}<input type="file" accept="image/*" hidden id="upl"></label>
+  </div>`;
+}
 R.selfie = { view: () => selfieView("onboard"), mount: () => mountCamera("onboard") };
 
 // ---------- build the twin ----------
