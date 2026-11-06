@@ -261,7 +261,9 @@ function render() {
   track("Screen", { screen: name });
   if (r.mount) Promise.resolve(r.mount(arg)).catch((e) => { console.error(e); toast("Something went wrong. Try again."); });
 }
-const tabbar = (on) => `<nav class="tabbar" aria-label="Main">${[["coach", "Exercise"], ["preview", "Looks"], ["progress", "Progress"]].map(([k, l]) => `<button class="${k === on ? "on" : ""}" data-go="${k}">${l}</button>`).join("")}</nav>`;
+const TABS = [["today", "Today", "list"], ["coach", "Workout", "dumbbell"], ["preview", "Retouch", "sparkles"], ["progress", "Progress", "trending"]];
+// Bottom navigation: docked, icon + label, the open tab is filled. Today is the routine; Workout the face exercises; Edit the retouch and looks.
+const tabbar = (on) => `<nav class="tabbar" aria-label="Main">${TABS.map(([k, l, ic]) => `<button class="${k === on ? "on" : ""}" data-go="${k}" ${k === on ? 'aria-current="page"' : ""}><span class="ti">${ico(ic, 22)}</span><span class="tl2">${l}</span></button>`).join("")}</nav>`;
 
 const ACT = {};
 app.addEventListener("click", (e) => {
@@ -1695,6 +1697,8 @@ function exStreak() {
 const exLast = (id) => [...S.exLog].reverse().find((r) => r.id === id);
 const exFirst = (id) => S.exLog.find((r) => r.id === id);
 const exDoneToday = () => new Set(S.exLog.filter((r) => r.d === dkey()).map((r) => r.id));
+// Photo of the exercise: shows the movement and where it works (scripts/gen-exercise-photos.mjs). Falls back to the drawn face if missing.
+const exPhoto = (id, css = "") => `<img src="assets/exercises/${esc(id)}.jpg" alt="" loading="lazy" style="object-fit:cover;object-position:50% 25%;${css}" onerror="this.remove()">`;
 function exDemo(id, size = 120) {
   return `<svg class="exd exd-${id}" width="${size}" height="${Math.round(size * 1.15)}" viewBox="0 0 120 138" aria-hidden="true">
     <g class="exd-head">
@@ -1719,14 +1723,14 @@ R.coach = {
       <div class="card" style="background:var(--lilac);color:var(--ink);gap:10px">
         <div class="top"><div><div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Today · jawline + cheeks</div>
           <div class="h1" style="font-size:34px">${n === ids.length ? "Done for today" : `${ids.length} exercises · ~${mins} min`}</div></div>
-          ${exDemo("jaw", 64)}</div>
+          <span style="width:68px;height:68px;border-radius:50%;overflow:hidden;flex:none;background:var(--p);display:block">${exPhoto((ids.find((id) => !today.has(id)) || ids[0]), "width:100%;height:100%")}</span></div>
         <div style="display:flex;gap:6px">${ids.map((id) => `<span style="flex:1;height:8px;border-radius:4px;background:${today.has(id) ? "#7C4DFF" : "rgba(14,14,20,.15)"}"></span>`).join("")}</div>
         <button class="cta inline" style="margin:0" data-act="woStart">${n && n < ids.length ? "Continue workout" : n === ids.length ? "Do it again" : "Start workout"}</button>
       </div>
       <div class="row" style="background:var(--card)"><span><b>📷 Your camera is your coach</b><small>It counts every rep and checks your form live. Nothing is recorded.</small></span></div>
       <div class="top"><b style="font-size:17px">All exercises</b><span class="small">${EXERCISES.length}</span></div>
       <div class="col">${EXERCISES.map((e, i) => { const l = exLast(e.id); return `<button class="row" data-go="ex/${e.id}" style="text-align:left">
-        <span style="display:flex;gap:12px;align-items:center"><span style="width:46px;height:46px;border-radius:14px;background:${PASTEL[i % 6]};display:flex;align-items:center;justify-content:center;flex:none;color:var(--ink)">${ico(e.icon, 26)}</span>
+        <span style="display:flex;gap:12px;align-items:center"><span style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:${PASTEL[i % 6]};display:flex;align-items:center;justify-content:center;flex:none;color:var(--ink)">${exPhoto(e.id, "width:100%;height:100%")}</span>
         <span><b>${e.name}</b><small>${e.area} · ${e.reps} reps${e.phases[0].hold ? ` × ${e.phases[0].hold / 1000}s hold` : ""}${l ? ` · last reach ${l.rom}%` : ""}</small></span></span>
         <span class="r">${today.has(e.id) ? "✓" : "›"}</span></button>`; }).join("")}</div>
       ${HAS3D ? `<button class="row" data-go="twin"><span><b>My 3D twin</b><small>See your face from every side</small></span><span class="r">›</span></button>` : ""}
@@ -1767,8 +1771,8 @@ R.ex = {
     if (!ui.exLive) {
       return `<div class="scr">${head}
         <h1 class="h1 xl">${esc(e.name)}</h1>
-        <div class="photo" style="height:250px;background:var(--lilac);display:flex;align-items:center;justify-content:center">${exDemo(e.id, 170)}
-          <span class="tl"><span class="pill dark">${e.muscles}</span></span><span class="tr"><span class="pill">${e.reps} reps</span></span></div>
+        <div class="photo" style="height:260px;background:var(--lilac)">${exPhoto(e.id, "width:100%;height:100%")}
+          <span class="tl"><span class="pill dark">${esc(e.area)} · ${esc(e.muscles)}</span></span><span class="tr"><span class="pill">${e.reps} reps</span></span></div>
         <div class="card"><b>How to do it</b><span style="font-size:14px;font-weight:700;line-height:1.5">${esc(e.how)}</span></div>
         <div class="row"><span><b>📷 We'll use your front camera</b><small>Hold the phone at face height. First, relax your face for 2 seconds so the coach learns your neutral face.</small></span></div>
         <button class="cta" data-act="exGo">Start · camera on</button></div>`;
@@ -1917,7 +1921,7 @@ function exProgressHTML() {
   const days = exDays(), tried = EXERCISES.filter((e) => exFirst(e.id));
   const pts = days.map((d) => { const rs = S.exLog.filter((r) => r.d === d); return Math.round(rs.reduce((a, r) => a + r.rom, 0) / rs.length); });
   const delta = pts.length > 1 ? pts[pts.length - 1] - pts[0] : 0;
-  return `<div class="card"><div class="top"><b style="font-size:15px">Face workout · reach</b><span style="font-family:var(--h);font-size:22px;font-weight:800;color:var(--pl)">${delta > 0 ? "+" : ""}${delta}</span></div>${exChart()}
+  return `<div class="card"><div class="top"><b style="font-size:15px">Face workout · reach</b><span class="delta">${pts.length > 1 ? (delta > 0 ? "+" : "") + delta : "—"}</span></div>${exChart()}
       <div class="top small" style="font-weight:700"><span>${days.length} workout ${days.length === 1 ? "day" : "days"}</span><span>🔥 ${exStreak()}</span></div></div>
     ${tried.length ? `<div class="col">${tried.map((e) => { const f = exFirst(e.id), l = exLast(e.id), d = l.rom - f.rom; return `<div class="row"><span><b>${esc(e.name)}</b><small>first ${f.rom}% → now ${l.rom}% · form ${l.form}%</small></span><span class="r" style="color:${d > 0 ? "var(--pl)" : "inherit"}">${d > 0 ? "+" : ""}${d}</span></div>`; }).join("")}</div>` : ""}`;
 }
@@ -1941,7 +1945,7 @@ R.progress = {
       <div class="top"><span class="h1" style="font-size:39px">Your progress</span><button class="pill chip" data-go="account">Week ${week()} · ⚙</button></div>
       ${exProgressHTML()}
       ${S.scans.length > 1 && S.scans[0].img && latest().img ? compareHTML(S.scans[0].img, latest().img, "Week 0", `Week ${week()}`, "40vh") : ""}
-      <div class="card"><div class="top"><b style="font-size:15px">Skin score</b><span style="font-family:var(--h);font-size:22px;font-weight:800;color:var(--pl)">${d > 0 ? "+" : ""}${d}</span></div>${chart()}
+      <div class="card"><div class="top"><b style="font-size:15px">Skin score</b><span class="delta">${S.scans.length > 1 ? (d > 0 ? "+" : "") + d : "—"}</span></div>${chart()}
         <div class="top small" style="font-weight:700"><span>Week 0</span><span>${S.scans.length} ${S.scans.length === 1 ? "scan" : "scans"}</span></div></div>
       <div class="grid3">${[["Workouts", exDays().length], ["Reps", S.exLog.reduce((a, r) => a + r.reps, 0)], ["Looks", S.previews.length]].map(([t, v]) => `<div class="card" style="padding:12px;gap:4px;border-radius:20px"><small class="small">${t}</small><b style="font-size:18px">${v}</b></div>`).join("")}</div>
       <div class="top"><b style="font-size:17px">Saved looks</b><span class="small">${S.saved.length}</span></div>

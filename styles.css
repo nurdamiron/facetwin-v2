@@ -78,10 +78,6 @@ a { color: var(--pl); }
 .scroll-x { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .scroll-x::-webkit-scrollbar { display: none; }
 .scroll-x > * { flex: none; }
-.tabbar { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); width: calc(min(430px, 100%) - 36px); display: flex; justify-content: space-around; background: var(--card); border-radius: 999px; padding: 8px; z-index: 5; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
-@media (min-width: 500px) { .tabbar { bottom: 40px; } }
-.tabbar button { border: 0; background: none; color: var(--muted); font-size: 13px; font-weight: 800; padding: 10px 12px; border-radius: 999px; cursor: pointer; }
-.tabbar button.on { background: var(--p); color: #fff; }
 .step { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 22px; color: var(--ink); border: 0; width: 100%; text-align: left; cursor: pointer; }
 .step .t { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .step b { font-size: 15px; }
@@ -328,3 +324,16 @@ input[type=checkbox]:checked { border-color: var(--p); background: var(--p) url(
 .dock { padding-top: 14px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 .plan b { font-size: 16px; } .plan .price { font-size: 23px; }
 .cta.danger, .ghost.danger { background: #2A1219; color: #FF8FA3; border: 1px solid rgba(255,143,163,.35); box-shadow: none; }  /* destructive actions: red outline, not a purple button with pink text */
+
+/* bottom navigation: docked, icon + label */
+.tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(430px, 100%); display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: rgba(14,14,20,.94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-top: 1px solid var(--line); z-index: 8; }
+.tabbar button { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 54px; padding: 4px 0 2px; border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; -webkit-tap-highlight-color: transparent; }
+.tabbar .ti { width: 54px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+.tabbar .tl2 { font-size: 11.5px; font-weight: 700; letter-spacing: .01em; }
+.tabbar button.on { color: var(--text); }
+.tabbar button.on .ti { background: var(--p); color: #fff; }
+.tabbar button:active .ti { background: var(--chip); }
+.tabbar button.on:active .ti { background: var(--p); }
+.scr.tabbed { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.scr.tabbed .dock { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); margin-bottom: -10px; padding-bottom: 12px; }
+.delta { font-family: var(--sans); font-size: 22px; font-weight: 800; color: var(--pl); font-variant-numeric: tabular-nums; }
