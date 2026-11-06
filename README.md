@@ -21,9 +21,9 @@ The landing is now the editor: **upload a selfie → pick a retouch → see befo
 ### Deploy on Vercel (about 10 minutes)
 
 1. Import the repo in Vercel. No build step; framework preset "Other".
-2. Project → Settings → Environment Variables: `GEMINI_API_KEY` (Google AI Studio key **with billing**, image models have no free API tier) **or** `OPENAI_API_KEY` (OpenAI Images, default model `gpt-image-1`, needs billing and, for that model, a verified organization). If both are set Gemini is used; `AI_PROVIDER=openai` forces OpenAI. OpenAI options: `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY` (default `medium`), `OPENAI_INPUT_FIDELITY` (default `high`, empty to omit). `/api/status` shows `provider`. Never paste a key in chat or in the repo. Optional: `AI_EDITS_PER_HOUR` (default 20; the old name `RATE_LIMIT_PER_HOUR` also works), `DAILY_CAP` (default 500), `GEMINI_IMAGE_MODEL`.
+2. Project → Settings → Environment Variables: `GEMINI_API_KEY` (Google AI Studio key **with billing**, image models have no free API tier) **or** `OPENAI_API_KEY` (OpenAI Images, default model `gpt-image-2.6-sunburst` (`gpt-image-1` was shut down on 2026-10-23; `gpt-image-1.5`, `gpt-image-1-mini` and `chatgpt-image-latest` end on 2026-12-01), needs billing and, for that model, a verified organization). If both are set Gemini is used; `AI_PROVIDER=openai` forces OpenAI. OpenAI options: `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY` (default `medium`), `OPENAI_INPUT_FIDELITY` (only for the gpt-image-1 family; gpt-image-2 does not accept it). `/api/status` shows `provider`. Never paste a key in chat or in the repo. Optional: `AI_EDITS_PER_HOUR` (default 20; the old name `RATE_LIMIT_PER_HOUR` also works), `DAILY_CAP` (default 500), `GEMINI_IMAGE_MODEL`.
 3. Deploy. Open the URL, upload a selfie, tap Show me. Test in an incognito window.
-4. In `config.js` fill `LEAD_ENDPOINT` (Formspree) and `META_PIXEL_ID`. Payments go through Stripe, see section 3a. `PAYMENT_LINKS` is only a fallback for the two Glow plans; while nothing is set up the paywall shows the honest "payments open soon" screen.
+4. In `config.js` fill `LEAD_ENDPOINT` (Formspree) and `META_PIXEL_ID`. Payments go through Stripe, see section 3a. `PAYMENT_LINKS` is only a fallback for the two Glow plans;.
 5. For a demo without paying: `?tester=1` unlocks everything, but only on localhost or with `?debug=1`. On the public site it stays off unless you set `ALLOW_TESTER: true` in `config.js` (then anyone who knows the URL can use it). The better demo is a real test-mode payment, see 3a.
 
 Local test with no keys and no Python: `STRIPE_MOCK=1 AI_MOCK=1 node scripts/dev-server.mjs`, then open http://localhost:8080. It serves the app and the `/api/*` functions; `AI_MOCK` returns your photo unchanged, `STRIPE_MOCK` fakes the checkout. `AI_MOCK` is ignored on Vercel; `STRIPE_MOCK` is ignored on the production deployment (`VERCEL_ENV=production`) but works on preview deployments, so a preview URL can run the whole payment flow with no Stripe account. With real keys, set `GEMINI_API_KEY` / `STRIPE_*` instead of the mocks.
@@ -166,7 +166,7 @@ It creates the 3 products, 6 prices, the 2 first-period coupons and the customer
 
 **Test without a Stripe account:** set `STRIPE_MOCK=1` (`node scripts/dev-server.mjs`, `vercel dev` or a Vercel *preview* deployment). `/api/checkout` then returns a fake session and `/api/verify` confirms it, so the whole flow, add-ons included, can be tried with no Stripe account. The mock is switched off by code on the production deployment, so it can't be left on by mistake.
 
-If `/api/checkout` isn't configured, the paywall falls back to `PAYMENT_LINKS`, then to the "payments open soon" screen.
+If `/api/checkout` isn't configured, the paywall falls back to `PAYMENT_LINKS`, then to a "checkout is temporarily unavailable" message.
 
 **Before live payments:** a US LLC for Stripe (see Money Map), Vercel Pro, real Privacy/Terms, and live keys (`sk_live_...`).
 

@@ -58,7 +58,11 @@ export default async function handler(req, res) {
       method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) return res.status(502).json({ error: `AI service error ${r.status}. Try again.` });
+    if (!r.ok) {
+      const e = (data && data.error) || {}; console.error("[ai] gemini", r.status, e.status || e.code || "", String(e.message || "").slice(0, 200)); // reason goes to the Vercel log only
+      const hint = r.status === 400 && /API key/i.test(e.message || "") ? "The AI key is not valid." : r.status === 403 ? "The AI key isn't allowed to use this model." : r.status === 429 ? "The AI is busy or out of quota. Try again in a minute." : "";
+      return res.status(502).json({ error: hint ? `${hint} (AI error ${r.status})` : `AI service error ${r.status}. Try again.` });
+    }
     for (const cand of data.candidates || []) {
       for (const part of (cand.content && cand.content.parts) || []) {
         const inline = part.inlineData || part.inline_data;
@@ -75,23 +79,30 @@ export default async function handler(req, res) {
 // OpenAI Images "edits": multipart, the photo as a file, the prompt built on the server. JPEG out keeps the reply well under Vercel's 4.5 MB limit.
 // input_fidelity=high asks the model to keep the face as it is; if the chosen model rejects an optional parameter (HTTP 400) we retry once without it.
 async function editOpenAI(res, ai, image, mime, prompt) {
-  const quality = process.env.OPENAI_IMAGE_QUALITY || "medium", fidelity = process.env.OPENAI_INPUT_FIDELITY === undefined ? "high" : process.env.OPENAI_INPUT_FIDELITY;
-  const send = (optional) => {
+  const quality = process.env.OPENAI_IMAGE_QUALITY || "medium", fidelity = process.env.OPENAI_INPUT_FIDELITY === undefined ? (/^gpt-image-1/.test(ai.model) ? "high" : "") : process.env.OPENAI_INPUT_FIDELITY; // gpt-image-2 keeps the face by itself and rejects input_fidelity (HTTP 400), so it is only sent for the gpt-image-1 family
+  const send = (optional, withSize = true) => { // optional: quality / format / fidelity; withSize: the size field (the last retry drops it too, so only model + prompt + image are sent)
     const fd = new FormData();
-    fd.append("model", ai.model); fd.append("prompt", prompt); fd.append("size", "auto");
+    fd.append("model", ai.model); fd.append("prompt", prompt); if (withSize) fd.append("size", "auto");
     fd.append("image", new Blob([Buffer.from(image, "base64")], { type: mime }), "photo." + (mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"));
     if (optional) { fd.append("quality", quality); fd.append("output_format", "jpeg"); fd.append("output_compression", "90"); if (fidelity) fd.append("input_fidelity", fidelity); }
-    return fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: "Bearer " + ai.key }, body: fd });
+    return fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: "Bearer " + ai.key }, body: fd, signal: AbortSignal.timeout(55_000) }); // stop before Vercel's 60 s limit so the user gets a clear message, not a blank 504
   };
   try {
     let r = await send(true);
     if (r.status === 400) r = await send(false);
+    if (r.status === 400) r = await send(false, false);
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) { console.error("[ai] openai", r.status, data && data.error && data.error.code); return res.status(502).json({ error: `AI service error ${r.status}. Try again.` }); }
+    if (!r.ok) {
+      const e = (data && data.error) || {}; console.error("[ai] openai", r.status, e.code || e.type || "", String(e.message || "").slice(0, 200)); // reason goes to the Vercel log only (never the photo)
+      const hint = r.status === 401 ? "The AI key is not valid." : r.status === 403 ? "The AI account isn't allowed to edit images yet (organization not verified?)." : r.status === 429 ? "The AI is busy or out of credit. Try again in a minute." : "";
+      const detail = process.env.AI_DEBUG === "1" ? ` [${e.code || e.type || ""}: ${String(e.message || "").slice(0, 160)}]` : ""; // AI_DEBUG=1 in Vercel shows the reason in the app while we debug; remove it afterwards
+      return res.status(502).json({ error: (hint ? `${hint} (AI error ${r.status})` : `AI service error ${r.status}. Try again.`) + detail });
+    }
     const out = data.data && data.data[0] && data.data[0].b64_json;
     if (!out) return res.status(502).json({ error: "The AI didn't return an image. Try another photo." });
     return res.status(200).json({ image: out, mime: data.output_format === "png" ? "image/png" : data.output_format === "webp" ? "image/webp" : "image/jpeg" });
-  } catch {
+  } catch (e) {
+    if (e && (e.name === "TimeoutError" || e.name === "AbortError")) return res.status(504).json({ error: "The AI took too long. Try again." });
     return res.status(502).json({ error: "The AI service is unreachable. Try again." });
   }
 }

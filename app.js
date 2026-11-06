@@ -246,6 +246,7 @@ function render() {
   $$(".sheet-bg").forEach((n) => n.remove());
   let [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
   if (!name) name = S.photos.front && S.startedAt ? homeFor() : "landing";
+  if (name === "waitlist") name = "paywall"; // the old "payments open soon" screen is gone
   let r = R[name];
   if (!r) { name = "landing"; r = R.landing; }
   if (r.needs && !S.photos.front) { name = "landing"; r = R.landing; }
@@ -925,11 +926,13 @@ R.twin = {
 async function checkAI() {
   try {
     const r = await fetch("api/status", { cache: "no-store" });
-    if (r.ok) { const j = await r.json(); ui.ai = { ok: !!j.ai, server: true, payments: !!j.payments, upsells: !!j.upsells }; }
+    if (r.ok) { const j = await r.json(); ui.ai = { ok: !!j.ai, server: true, payments: !!j.payments, upsells: !!j.upsells, provider: j.provider || "" }; }
     else ui.ai = { ok: false, server: false };
   } catch { ui.ai = { ok: false, server: false }; }
   return ui.ai;
 }
+// Who really receives the photo: named in the consent sheet and the privacy card (must match the provider configured on the server).
+const aiWho = () => ui.ai && ui.ai.provider === "openai" ? "OpenAI" : ui.ai && ui.ai.provider === "gemini" ? "Google's Gemini AI" : "our AI image provider (OpenAI or Google Gemini)";
 const cmpSeen = new Set();
 const compareHTML = (a, b, la = "Before", lb = "After", maxH = "56vh") => { const k = b.length + b.slice(-48), hint = !cmpSeen.has(k); cmpSeen.add(k); return `<div class="cmp${hint ? " hint" : ""}" style="max-height:${maxH}">
   <img src="${b}" alt="${lb}"><div class="cmp-a"><img src="${a}" alt="${la}"></div><div class="cmp-line"><span>⟷</span></div>
@@ -974,8 +977,8 @@ R.preview = {
       ${base ? `<div class="row" style="border:2px dashed var(--p)"><span><b>Adding a change on top of ${esc(entryName(base))}</b><small>Pick the next change below</small></span><button class="pill chip" data-act="baseOff">✕ Stop</button></div>` : ""}
       ${shown ? `<div class="col" style="gap:12px">
           <button class="cta inline" data-act="prevSave">${ico(S.flags.glow ? (isPaid() ? "download" : "lock") : "download", 22)} ${S.flags.glow ? "Download in HD" : "Save photo"}</button>
-          <div class="wrap" style="justify-content:center">
-            <button class="chip sm" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 16)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` <span class="pro-tag">Looks</span>` : ""}</button>
+          <div class="acts3">
+            <button class="chip sm" data-act="prev3d">${ico(ui.prev3d ? "compare" : "cube", 16)} ${ui.prev3d ? "Compare 2D" : "View in 3D"}${S.flags.glow && !hasLooks() && !ui.prev3d ? ` ${ico("lock", 13)}` : ""}</button>
             <button class="chip sm" data-act="stackOn">${ico("plus", 16)} Add a change</button>
             <button class="chip sm" data-act="prevAgain">${ico("refresh", 16)} Try again</button></div></div>` : ""}
       <div class="scroll-x">${GROUPS.map((g) => `<button class="chip sm ${g === group ? "on" : ""}" data-act="prevGroup" data-v="${g}">${S.flags.glow && !GLOW_GROUPS.includes(g) && !hasLooks() ? ico("lock", 13) + " " : ""}${g}</button>`).join("")}</div>
@@ -983,7 +986,7 @@ R.preview = {
           <textarea id="ctext" rows="2" maxlength="200" placeholder="e.g. a short curly fade and a thin mustache" style="width:100%;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--text);padding:12px;font:inherit;font-weight:700;resize:none">${esc(ui.ctext || "")}</textarea>
           <small class="small">Keep it to your face and hair. The AI keeps everything else the same.</small></div>`
         : `<div class="grid3 tiles">${PREVIEWS.filter((q) => q.group === group).map((q, i) => tile(q.icon, q.name, { photo: q.photo, on: q.id === sel, done: !!previewOf(changeKey(q.id)), i, attrs: `data-act="prevSel" data-v="${q.id}"` })).join("")}</div>`}
-      ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add your Gemini API key (README → Realistic previews), then restart." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
+      ${ai && !ai.ok ? `<div class="card" style="background:var(--yel);color:var(--ink)"><b>Realistic looks are off</b><span style="font-size:13px;font-weight:700;line-height:1.45">${ai.server ? "Add GEMINI_API_KEY or OPENAI_API_KEY (README → Deploy on Vercel), then redeploy." : "Start the app with <code>python3 server.py</code> instead of http.server to turn them on."}</span>
           ${S.startedAt ? `<button class="link" style="text-align:left;color:var(--ink);text-decoration:underline" data-go="studio">Use the instant drawn try-on meanwhile</button>` : ""}</div>` : ""}
       ${!shown ? `<div class="dock"><button class="cta inline" data-act="prevGen" data-v="${sel}" ${ui.busy || (ai && !ai.ok) ? "disabled" : ""}>${ui.busy ? `<span class="spin sm"></span> Working…` : `${ico("sparkles", 22)} ${group === "Your idea" ? "Show me" : `Show me with ${esc(p.name.toLowerCase())}`}`}</button></div>` : ""}
       ${!S.startedAt && S.previews.length && !S.flags.glow ? `<button class="cta" data-act="twinNext">Save my looks + start</button>` : ""}
@@ -1111,7 +1114,7 @@ function toggleLook(id) {
 function askAIConsent(next) {
   ui.afterConsent = next;
   sheet(`<h2 class="h1" style="font-size:31px">One thing before we edit</h2>
-    <p class="sub">To make this edit we send your photo to Google's Gemini AI. We don't keep it on our servers; your photos stay in this browser. You can delete them anytime in Privacy. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+    <p class="sub">To make this edit we send your photo to ${aiWho()}. We don't keep it on our servers; your photos stay in this browser. You can delete them anytime in Privacy. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
     <label class="row" style="cursor:pointer"><input type="checkbox" id="aiOk" style="width:22px;height:22px;flex:none"><span><b>I agree to send my photo to the AI editor</b><small>This includes processing of my face in the photo. Needed to continue.</small></span></label>
     <button class="cta inline" data-act="aiAgree">Continue</button><button class="link" data-close>Not now</button>`);
 }
@@ -1276,9 +1279,9 @@ ACT.checkout = async (_v, el) => {
     }
     hideWait(); if (el) { el.disabled = false; el.textContent = label; }
   }
-  // 2) payment link, 3) honest "payments open soon" screen
+  // 2) payment link, 3) checkout is not available: say so and stay on the plans (no fake "opens soon" promise)
   if (link) location.href = link.replace("{email}", encodeURIComponent(S.email || ""));
-  else go("waitlist");
+  else { track("CheckoutUnavailable", { plan: p.id }); toast("Checkout is temporarily unavailable. Please try again in a few minutes."); }
 };
 // Back from Stripe: /?cs=<session id>. Ask our server whether Stripe really took the money, then unlock.
 async function confirmCheckout(cs) {
@@ -1399,28 +1402,6 @@ ACT.manageSub = async (_v, el) => {
   } catch (e) { if (el) el.disabled = false; toast(String(e.message || e).slice(0, 160)); }
 };
 ACT.notNow = () => { track("PaywallDismissed"); go(S.flags.glow ? "preview" : S.freeStart ? "today" : "freeoffer"); };
-
-R.waitlist = {
-  needs: true,
-  view: () => {
-    const p = planById(S.chosen);
-    return `<div class="scr"><div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px">
-      <span class="pill" style="align-self:flex-start;background:var(--yel);color:var(--ink)">Early access</span>
-      <h1 class="h1 xl">Payments open <span class="hl">in a few days</span></h1>
-      <p class="sub">You picked the <b style="color:var(--text)">${p.name}</b>. We saved your spot with <b style="color:var(--text)">50% off your first payment</b>.</p>
-      ${S.email ? `<div class="row"><span><b>We'll email you first</b><small>${esc(S.email)}</small></span><span class="r">✓</span></div>`
-        : `<input class="input" id="wem" type="email" placeholder="you@email.com" autocomplete="email"><button class="ghost" data-act="waitEmail">Save my spot</button>`}
-      ${S.flags.glow ? `<div class="row" style="background:var(--mint);color:var(--ink)"><span><b>Meanwhile</b><small>${CONFIG.FREE_PREVIEWS} free edits, with before and after</small></span><span class="r">Free</span></div>`
-        : `<div class="row" style="background:var(--mint);color:var(--ink)"><span><b>Meanwhile: your free week</b><small>2-step routine, ${CONFIG.FREE_LOOKS} looks, day-7 re-scan</small></span><span class="r">Free</span></div>`}
-    </div>${S.flags.glow ? `<button class="cta inline" data-go="preview">Back to my edits</button>` : `<button class="cta inline" data-act="startFree">Start my free week now</button>`}</div>`;
-  },
-  mount: () => { if (!S.waitlist) { S.waitlist = S.chosen; save(); track("JoinWaitlist", { plan: S.chosen, value: planById(S.chosen).price, currency: CONFIG.CURRENCY }); } },
-};
-ACT.waitEmail = () => {
-  const v = $("#wem").value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return toast("Check your email address");
-  S.email = v; save(); track("Lead"); postLead({ step: "waitlist" }); render();
-};
 
 R.freeoffer = {
   needs: true,
@@ -2102,8 +2083,8 @@ R.account = {
       <div class="top">${backBtn("progress")}<span class="pill chip">Settings</span><span class="spacer"></span></div>
       <h1 class="h1">Your plan</h1>
       <div class="card" style="background:var(--p);color:#fff">
-        <div class="top"><span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">${p ? "Active" : S.waitlist ? "Early access" : "Free week"}</span><span class="pill" style="background:#fff;color:var(--ink)">Week ${week()}</span></div>
-        <span class="h1" style="font-size:36px">${p ? `${p.name} · $${p.price}` : S.waitlist ? `Spot saved: ${planById(S.waitlist).name}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
+        <div class="top"><span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">${p ? "Active" : "Free week"}</span><span class="pill" style="background:#fff;color:var(--ink)">Week ${week()}</span></div>
+        <span class="h1" style="font-size:36px">${p ? `${p.name} · $${p.price}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
         <span style="font-size:13px;font-weight:700;opacity:.85">${p ? (S.billing?.customer ? "Change plan, update card or cancel below." : "Manage or cancel from your payment receipt email.") : S.email ? `We'll email ${esc(S.email)}` : "No card on file"}</span></div>
       <div class="col">
         ${!p ? `<button class="row" data-go="paywall"><span><b>Get the full plan</b><small>Every look + full routine</small></span><span class="r">›</span></button>` : ""}
@@ -2170,7 +2151,7 @@ R.privacy = {
     <h1 class="h1 xl">Your face, <span class="hl">your rules</span></h1>
     <div class="card" style="background:var(--mint);color:var(--ink);font-size:13px;font-weight:700;line-height:1.5">
       <span>✓ Face detection runs on this phone.</span>
-      <span>✓ A photo goes to Google's Gemini AI only when you tap Show me and agree. We don't store it.</span>
+      <span>✓ A photo goes to ${aiWho()} only when you tap Show me and agree. We don't store it.</span>
       <span>✓ Photos, edits and looks are saved only in this browser.</span>
       <span>✓ We only receive your email (if you gave it) and your plan choice.</span>
       <span>✓ Delete everything here anytime, in one tap.</span></div>

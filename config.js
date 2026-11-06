@@ -8,7 +8,7 @@ export const CONFIG = {
   LEAD_ENDPOINT: "",
 
   // Checkout links from your payment provider (Paddle, Lemon Squeezy, Gumroad, Stripe...).
-  // Leave "" and the paywall shows an honest "payments open soon / early access" screen instead.
+  // Leave "" to use Stripe Checkout only; if checkout is unavailable the paywall shows an error message.
   PAYMENT_LINKS: { trial: "", four: "", twelve: "", glow_m: "", glow_q: "" },
   // Main path is Stripe Checkout through /api/checkout (keys in Vercel env vars, see README "Payments").
   // PAYMENT_LINKS above are only the fallback. Old unlock by URL (?paid=glow_m) stays OFF: anyone can type it.

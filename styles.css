@@ -308,3 +308,23 @@ input[type=checkbox]:checked { border-color: var(--p); background: var(--p) url(
 .tph { width: 100%; aspect-ratio: 1 / 0.86; border-radius: 18px; overflow: hidden; background: var(--tc, var(--lilac)); display: block; }
 .tph img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
 .tile2.has-photo .tck, .tile2.has-photo .tdone { top: 12px; right: 12px; background: var(--p); color: #fff; }
+
+/* polish: tidy rows and tap targets */
+.plan:has(.badge) { padding-top: 26px; }                       /* "Best value" badge no longer sits on the plan name */
+.plan .badge { top: -11px; box-shadow: 0 4px 14px rgba(0,0,0,.35); display: inline-flex; align-items: center; gap: 4px; }
+.acts3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.acts3 .chip.sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 6px; font-size: 12.5px; min-width: 0; }
+.link[data-act="upNo"], .link[data-act="notNow"] { min-height: 48px; padding: 12px 18px; font-size: 15px; color: var(--text); opacity: .72; border-radius: 14px; }
+.link[data-act="upNo"]:active, .link[data-act="notNow"]:active { opacity: 1; background: var(--chip); }
+.dock.pay .link[data-act="notNow"] { min-height: 36px; padding: 6px 18px; font-size: 14px; }  /* keep the paywall's bottom bar compact so both plans stay visible */
+.ba .photo { aspect-ratio: 1 / 0.78; }
+/* buttons and segments: a little smaller and calmer (main button ~52px instead of ~62px) */
+.cta { font-size: 16.5px; padding: 15px 18px; letter-spacing: -.005em; }
+.ghost { font-size: 15px; padding: 13px 16px; }
+.cta .ic, .ghost .ic { width: 20px; height: 20px; }
+.chip { font-size: 14px; padding: 11px 15px; }
+.chip.sm { font-size: 12.5px; padding: 8px 12px; }
+.seg button { padding: 10px 0; font-size: 13px; border-radius: 14px; }
+.dock { padding-top: 14px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.plan b { font-size: 16px; } .plan .price { font-size: 23px; }
+.cta.danger, .ghost.danger { background: #2A1219; color: #FF8FA3; border: 1px solid rgba(255,143,163,.35); box-shadow: none; }  /* destructive actions: red outline, not a purple button with pink text */
