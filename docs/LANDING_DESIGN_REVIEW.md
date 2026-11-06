@@ -130,16 +130,18 @@ All page buttons now go to `https://facetwin-demo.vercel.app/?utm_source=framer&
 
 The ticker has 9 cards (`Problem card 1-9`). Words: `tools/framer/cards.mjs`. Icons: the nine Hugeicons Free SVGs from `assets/landing-icons/` are applied. The master component "Problem card" got an image variable "Icon Image" and a 44 px round chip (`#1E1B2E`) with a 24 px icon bound to it; the old fixed sparkle was removed. Each instance has its own icon in `$control__iconImage`. This was done through `framer.agent.applyChanges` (see `tools/framer/README.md`, "Icons and the agent API"), not by hand. Scripts: `icons-upload.mjs` (SVG to Framer assets), `icons-component.mjs` (edit the master), `icons-set.mjs` (set the nine instances).
 
-| Card | Words | Icon file (Hugeicons) |
+| Card | Words | Icon file (Hugeicons name) |
 |---|---|---|
-| 1 | Clearer skin | `01-clearskin.svg` |
-| 2 | Fresher eyes | `02-undereye.svg` |
-| 3 | Brighter smile | `03-teeth.svg` |
-| 4 | Freckles on or off | `04-frecklesOn.svg` (the set has no better freckle icon) |
-| 5 | Healthy glow | `05-glow.svg` |
-| 6 | Clean backgrounds | `06-image.svg` |
-| 7 | Softer lines | `07-wrinkles.svg` |
-| 8 | Same expression | `08-smile.svg` |
-| 9 | Still you | `09-face.svg` |
+| 1 | Clearer skin | `01-clearskin.svg` (AiBeautify, retouch wand) |
+| 2 | Fresher eyes | `02-undereye.svg` (ScanEye) |
+| 3 | Brighter smile | `03-teeth.svg` (DentalTooth) |
+| 4 | Freckles on or off | `04-freckles.svg` (MoreHorizontal, three dots) |
+| 5 | Healthy glow | `05-glow.svg` (Sun01) |
+| 6 | Clean backgrounds | `06-background.svg` (AiBackgroundEraser, person on a new background) |
+| 7 | Softer lines | `07-softerlines.svg` (AiEraser) |
+| 8 | Same expression | `08-smile.svg` (Smile) |
+| 9 | Still you | `09-identity.svg` (FaceId) |
+
+First pass used a broom for skin, a target for freckles, waves for wrinkles; the owner flagged that icons did not match the words, so they were replaced the same day. `icons-build.mjs` regenerates the SVGs from the Hugeicons package; then run `icons-upload.mjs` and `icons-set.mjs`.
 
 Still open for the ticker: pagination dots are orange (should be `#7C4DFF` active, `#3A3A46` inactive), hide the "Slide X of Y" counter on Phone. The unused leftover variable "Icon" in the component can be deleted. **Nothing is published until someone presses Publish** (or runs `tools/framer/pub.mjs`).

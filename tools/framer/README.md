@@ -33,6 +33,7 @@ Gotchas are in `docs/LANDING.md` section 3. Masters can NOT be edited with the n
 
 | Script | What it does |
 |---|---|
+| `icons-build.mjs` | builds the nine SVGs from the Hugeicons Free package (mapping card -> icon is in the file) |
 | `icons-upload.mjs` | uploads `assets/landing-icons/*.svg` to Framer, writes `icon-urls.json` |
 | `icons-component.mjs` | edits the master "Problem card" (image variable, chip, icon frame) with `framer.agent.applyChanges` |
 | `icons-set.mjs` | sets `$control__iconImage` on the nine instances and reads it back |
