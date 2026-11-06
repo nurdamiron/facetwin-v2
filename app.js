@@ -205,6 +205,7 @@ function render() {
   $$(".sheet-bg").forEach((n) => n.remove());
   let [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
   if (!name) name = S.photos.front && S.startedAt ? homeFor() : "landing";
+  if (name === "waitlist") name = "paywall"; // the old "payments open soon" screen is gone
   let r = R[name];
   if (!r) { name = "landing"; r = R.landing; }
   if (r.needs && !S.photos.front) { name = "landing"; r = R.landing; }
@@ -1194,9 +1195,9 @@ ACT.checkout = async (_v, el) => {
     }
     if (el) { el.disabled = false; el.textContent = label; }
   }
-  // 2) payment link, 3) honest "payments open soon" screen
+  // 2) payment link, 3) checkout is not available: say so and stay on the plans (no fake "opens soon" promise)
   if (link) location.href = link.replace("{email}", encodeURIComponent(S.email || ""));
-  else go("waitlist");
+  else { track("CheckoutUnavailable", { plan: p.id }); toast("Checkout is temporarily unavailable. Please try again in a few minutes."); }
 };
 // Back from Stripe: /?cs=<session id>. Ask our server whether Stripe really took the money, then unlock.
 async function confirmCheckout(cs) {
@@ -1314,28 +1315,6 @@ ACT.manageSub = async (_v, el) => {
   } catch (e) { if (el) el.disabled = false; toast(String(e.message || e).slice(0, 160)); }
 };
 ACT.notNow = () => { track("PaywallDismissed"); go(S.flags.glow ? "preview" : S.freeStart ? "today" : "freeoffer"); };
-
-R.waitlist = {
-  needs: true,
-  view: () => {
-    const p = planById(S.chosen);
-    return `<div class="scr"><div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px">
-      <span class="pill" style="align-self:flex-start;background:var(--yel);color:var(--ink)">Early access</span>
-      <h1 class="h1 xl">Payments open <span class="hl">in a few days</span></h1>
-      <p class="sub">You picked the <b style="color:var(--text)">${p.name}</b>. We saved your spot with <b style="color:var(--text)">50% off your first payment</b>.</p>
-      ${S.email ? `<div class="row"><span><b>We'll email you first</b><small>${esc(S.email)}</small></span><span class="r">✓</span></div>`
-        : `<input class="input" id="wem" type="email" placeholder="you@email.com" autocomplete="email"><button class="ghost" data-act="waitEmail">Save my spot</button>`}
-      ${S.flags.glow ? `<div class="row" style="background:var(--mint);color:var(--ink)"><span><b>Meanwhile</b><small>${CONFIG.FREE_PREVIEWS} free edits, with before and after</small></span><span class="r">Free</span></div>`
-        : `<div class="row" style="background:var(--mint);color:var(--ink)"><span><b>Meanwhile: your free week</b><small>2-step routine, ${CONFIG.FREE_LOOKS} looks, day-7 re-scan</small></span><span class="r">Free</span></div>`}
-    </div>${S.flags.glow ? `<button class="cta inline" data-go="preview">Back to my edits</button>` : `<button class="cta inline" data-act="startFree">Start my free week now</button>`}</div>`;
-  },
-  mount: () => { if (!S.waitlist) { S.waitlist = S.chosen; save(); track("JoinWaitlist", { plan: S.chosen, value: planById(S.chosen).price, currency: CONFIG.CURRENCY }); } },
-};
-ACT.waitEmail = () => {
-  const v = $("#wem").value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return toast("Check your email address");
-  S.email = v; save(); track("Lead"); postLead({ step: "waitlist" }); render();
-};
 
 R.freeoffer = {
   needs: true,
@@ -2017,8 +1996,8 @@ R.account = {
       <div class="top">${backBtn("progress")}<span class="pill chip">Settings</span><span class="spacer"></span></div>
       <h1 class="h1">Your plan</h1>
       <div class="card" style="background:var(--p);color:#fff">
-        <div class="top"><span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">${p ? "Active" : S.waitlist ? "Early access" : "Free week"}</span><span class="pill" style="background:#fff;color:var(--ink)">Week ${week()}</span></div>
-        <span class="h1" style="font-size:36px">${p ? `${p.name} · $${p.price}` : S.waitlist ? `Spot saved: ${planById(S.waitlist).name}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
+        <div class="top"><span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">${p ? "Active" : "Free week"}</span><span class="pill" style="background:#fff;color:var(--ink)">Week ${week()}</span></div>
+        <span class="h1" style="font-size:36px">${p ? `${p.name} · $${p.price}` : `Day ${Math.min(freeDay(), CONFIG.FREE_DAYS)} of ${CONFIG.FREE_DAYS}`}</span>
         <span style="font-size:13px;font-weight:700;opacity:.85">${p ? (S.billing?.customer ? "Change plan, update card or cancel below." : "Manage or cancel from your payment receipt email.") : S.email ? `We'll email ${esc(S.email)}` : "No card on file"}</span></div>
       <div class="col">
         ${!p ? `<button class="row" data-go="paywall"><span><b>Get the full plan</b><small>Every look + full routine</small></span><span class="r">›</span></button>` : ""}
